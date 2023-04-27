@@ -1,4 +1,5 @@
-#include <QTimer>
+#include <QMouseEvent>
+
 #include "widget/OpenGLWindow.h"
 
 void OpenGLWindow::initShaders()
@@ -9,7 +10,7 @@ void OpenGLWindow::initShaders()
 void OpenGLWindow::resizeGL(int w, int h)
 {
     qreal aspect = qreal(w) / qreal(h ? h : 1);
-    const qreal zNear = 0.1, zFar = 100.0, fov = 60.0;
+    const qreal zNear = 0.1, zFar = 10000.0, fov = 60.0;
 
     // Set perspective projection
     camera.setPerpective(fov, aspect, zNear, zFar);
@@ -27,28 +28,25 @@ void OpenGLWindow::paintGL()
 
     program.bind();
 
-    model.translate(0.0, 0.0, 0.0);
-    model.rotate(0.3, 0, 1, 0);
-
-    camera.setPosition(0, 1, 5);
-    camera.setViewPoint(0, 0, 0);
-    camera.setUpVector(0, 1, 0);
-
     // Set modelview-projection model
     program.setUniformValue("mvp_matrix", camera.getProjection() * camera.getView() * model);
-    engine->draw(&program, mesh);
+    for (const auto &mesh: meshes)
+    {
+        engine->draw(&program, mesh);
+    }
+
 
     QOpenGLWidget::paintGL();
 }
 
 void OpenGLWindow::initializeGL()
 {
-    mesh = nullptr;
 
     initializeOpenGLFunctions();
-    QTimer *timer = new QTimer(this);
-    connect(timer, SIGNAL(timeout()), this, SLOT(update()));
-    timer->start(8);
+
+    camera.setPosition(0, 5, 10);
+    camera.setViewPoint(0, 0, 0);
+    camera.setUpVector(0, 1, 0);
     // Compile vertex shader
     if (!program.addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/vshader.glsl"))
         close();
@@ -73,4 +71,63 @@ void OpenGLWindow::initializeGL()
 
 
     QOpenGLWidget::initializeGL();
+}
+
+void OpenGLWindow::mouseMoveEvent(QMouseEvent *event)
+{
+
+    camera.rotateCameraAroundY(previousMousePosition.x() - event->pos().x());
+    camera.rotateCameraAroundX(previousMousePosition.y() - event->pos().y());
+    qDebug() << previousMousePosition.y() - event->pos().y();
+    previousMousePosition = event->pos();
+    update();
+
+    QWidget::mouseMoveEvent(event);
+}
+
+void OpenGLWindow::mousePressEvent(QMouseEvent *event)
+{
+    previousMousePosition = event->pos();
+
+    QWidget::mousePressEvent(event);
+}
+
+void OpenGLWindow::wheelEvent(QWheelEvent *event)
+{
+    if (event->angleDelta().y() > 0)
+    {
+        camera.zoomIn(2);
+        update();
+    }
+
+    if (event->angleDelta().y() < 0)
+    {
+        camera.zoomOut(2);
+        update();
+    }
+
+    QWidget::wheelEvent(event);
+}
+
+void OpenGLWindow::addGeometry(Mesh *newMesh)
+{
+    meshes.append(newMesh);
+}
+
+OpenGLWindow::~OpenGLWindow()
+{
+    clear();
+    delete engine;
+
+}
+
+void OpenGLWindow::clear()
+{
+    for (int i = 0; i < meshes.count(); ++i)
+    {
+        delete meshes[i];
+    }
+
+    meshes.clear();
+    update();
 }

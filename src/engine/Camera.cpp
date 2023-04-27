@@ -32,3 +32,30 @@ QMatrix4x4 Camera::getProjection()
 {
     return projection;
 }
+
+void Camera::rotateCameraAroundY(float angle)
+{
+    QMatrix4x4 rotationEye;
+    rotationEye.rotate(angle, 0, 1, 0);
+    eye = rotationEye.map(eye);
+}
+
+void Camera::rotateCameraAroundX(float angle)
+{
+    QVector3D rotateAxis(eye.z(), 0, -eye.x());
+    rotateAxis.normalize();
+
+    QMatrix4x4 rotationEye;
+    rotationEye.rotate(angle, rotateAxis);
+    eye = rotationEye.map(eye);
+}
+
+void Camera::zoomIn(float scale)
+{
+    eye /= scale;
+}
+
+void Camera::zoomOut(float scale)
+{
+    eye *= scale;
+}

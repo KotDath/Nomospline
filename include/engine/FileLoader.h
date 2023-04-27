@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Mesh.h"
+#include "structures/Mesh.h"
 
 class FileLoader {
 public:

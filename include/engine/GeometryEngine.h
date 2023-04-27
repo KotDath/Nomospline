@@ -3,7 +3,7 @@
 #include <QOpenGLFunctions>
 #include <QOpenGLShaderProgram>
 
-#include "Mesh.h"
+#include "structures/Mesh.h"
 
 
 class GeometryEngine : protected QOpenGLFunctions

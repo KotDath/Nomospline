@@ -9,6 +9,9 @@
 
 class OpenGLWindow : public QOpenGLWidget, protected QOpenGLFunctions
 {
+private:
+    virtual ~OpenGLWindow();
+
 protected:
     void initShaders();
 
@@ -19,14 +22,20 @@ protected:
 
     void paintGL() override;
 
+    void mouseMoveEvent(QMouseEvent *event);
+    void mousePressEvent(QMouseEvent *event);
+    void wheelEvent(QWheelEvent *event);
+
 public:
-    void setGeometry(Mesh* newMesh) {mesh = newMesh;}
+    void addGeometry(Mesh *newMesh);
+    void clear();
 
 private:
     QOpenGLShaderProgram program;
-    GeometryEngine* engine;
+    GeometryEngine *engine;
     Camera camera;
-    Mesh* mesh;
+    QVector<Mesh*> meshes;
     QMatrix4x4 model;
 
+    QPoint previousMousePosition;
 };

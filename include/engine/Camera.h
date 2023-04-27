@@ -6,6 +6,11 @@ class Camera
 {
 public:
     void setPosition(float x, float y, float z);
+    void rotateCameraAroundY(float angle);
+    void rotateCameraAroundX(float angle);
+
+    void zoomIn(float scale);
+    void zoomOut(float scale);
 
     void setViewPoint(float x, float y, float z);
 

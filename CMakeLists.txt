@@ -21,7 +21,7 @@ include_directories(include)
 SET(ENGINE_SRC src/engine/GeometryEngine.cpp src/engine/MeshLoader.cpp src/engine/Camera.cpp)
 SET(WIDGET_SRC src/widget/OpenGLWindow.cpp src/widget/MainWindow.cpp)
 
-add_executable(Nomospline main.cpp ${ENGINE_SRC} ${WIDGET_SRC} shaders.qrc)
+add_executable(Nomospline main.cpp ${ENGINE_SRC} ${WIDGET_SRC} shaders.qrc images.qrc)
 target_link_libraries(Nomospline
         Qt::Core
         Qt::Gui
