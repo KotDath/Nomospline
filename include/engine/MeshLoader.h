@@ -1,9 +1,9 @@
 #pragma once
 
 #include <QString>
-#include "FileLoader.h"
+#include "structures/Mesh.h"
 
-class MeshLoader: public FileLoader {
+class MeshLoader {
 public:
-    Mesh* load(const QString& path) override;
+    Mesh* load(const QString& path);
 };

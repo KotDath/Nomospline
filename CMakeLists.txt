@@ -18,7 +18,7 @@ find_package(Qt6 COMPONENTS
 
 include_directories(include)
 
-SET(ENGINE_SRC src/engine/GeometryEngine.cpp src/engine/MeshLoader.cpp src/engine/Camera.cpp)
+SET(ENGINE_SRC src/engine/GeometryEngine.cpp src/engine/MeshLoader.cpp src/engine/Camera.cpp src/engine/SplineLoader.cpp)
 SET(WIDGET_SRC src/widget/OpenGLWindow.cpp src/widget/MainWindow.cpp)
 SET(STRUCTURES_SRC src/structures/NURBS.cpp)
 

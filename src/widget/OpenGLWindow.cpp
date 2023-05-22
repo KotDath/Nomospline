@@ -26,14 +26,25 @@ void OpenGLWindow::paintGL()
     glEnable(GL_DEPTH_TEST);
 
 
-    program.bind();
+    meshProgram.bind();
 
     // Set modelview-projection model
-    program.setUniformValue("mvp_matrix", camera.getProjection() * camera.getView() * model);
+    meshProgram.setUniformValue("mvp_matrix", camera.getProjection() * camera.getView() * model);
     for (const auto &mesh: meshes)
     {
-        engine->draw(&program, mesh);
+        engine->draw(&meshProgram, mesh, GL_TRIANGLES);
     }
+
+    pointsProgram.bind();
+
+    // Set modelview-projection model
+    pointsProgram.setUniformValue("mvp_matrix", camera.getProjection() * camera.getView() * model);
+    for (const auto &mesh: meshes)
+    {
+        engine->draw(&pointsProgram, mesh, GL_POINTS);
+    }
+
+
 
 
     QOpenGLWidget::paintGL();
@@ -48,19 +59,34 @@ void OpenGLWindow::initializeGL()
     camera.setViewPoint(0, 0, 0);
     camera.setUpVector(0, 1, 0);
     // Compile vertex shader
-    if (!program.addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/vshader.glsl"))
+    if (!meshProgram.addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/mesh/vshader.glsl"))
         close();
 
     // Compile fragment shader
-    if (!program.addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/fshader.glsl"))
+    if (!meshProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/mesh/fshader.glsl"))
         close();
 
     // Link shader pipeline
-    if (!program.link())
+    if (!meshProgram.link())
         close();
 
     // Bind shader pipeline for use
-    if (!program.bind())
+    if (!meshProgram.bind())
+        close();
+
+    if (!pointsProgram.addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/points/vshader.glsl"))
+        close();
+
+    // Compile fragment shader
+    if (!pointsProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/points/fshader.glsl"))
+        close();
+
+    // Link shader pipeline
+    if (!pointsProgram.link())
+        close();
+
+    // Bind shader pipeline for use
+    if (!pointsProgram.bind())
         close();
 
     engine = new GeometryEngine;
@@ -68,6 +94,7 @@ void OpenGLWindow::initializeGL()
     initShaders();
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
+    glEnable(GL_PROGRAM_POINT_SIZE);
 
 
     QOpenGLWidget::initializeGL();

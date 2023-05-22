@@ -31,7 +31,8 @@ public:
     void clear();
 
 private:
-    QOpenGLShaderProgram program;
+    QOpenGLShaderProgram meshProgram;
+    QOpenGLShaderProgram pointsProgram;
     GeometryEngine *engine;
     Camera camera;
     QVector<Mesh*> meshes;

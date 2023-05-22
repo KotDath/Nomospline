@@ -17,8 +17,8 @@ Mesh* MeshLoader::load(const QString &path)
     }
 
     QTextStream in(&file);
-    QVector<VertexData> temp_vertices;
-    QVector<GLushort> temp_indices;
+
+    auto* mesh = new Mesh();
 
     while (!in.atEnd())
     {
@@ -42,8 +42,8 @@ Mesh* MeshLoader::load(const QString &path)
                 {
                     if (lineLocal != 0)
                     {
-                        temp_indices.append(previousValue - 1);
-                        temp_indices.append(value - 1);
+                        mesh->indices.append(previousValue - 1);
+                        mesh->indices.append(value - 1);
                     }
                     previousValue = value;
                     ++lineLocal;
@@ -62,7 +62,7 @@ Mesh* MeshLoader::load(const QString &path)
                 if (value != 0)
                 {
 
-                    temp_indices.append(value - 1);
+                    mesh->indices.append(value - 1);
 
                 }
 
@@ -73,7 +73,7 @@ Mesh* MeshLoader::load(const QString &path)
         if (line.startsWith("v "))
         {
             QStringList words = line.split(" ");
-            temp_vertices.append({QVector3D(
+            mesh->vertices.append({QVector3D(
                     words[1].toFloat(),
                     words[2].toFloat(),
                     words[3].toFloat()
@@ -82,21 +82,6 @@ Mesh* MeshLoader::load(const QString &path)
     }
 
     file.close();
-
-    auto* mesh = new Mesh();
-    mesh->vertices = new VertexData[temp_vertices.count()];
-    for (int i = 0; i < temp_vertices.count(); ++i)
-    {
-        mesh->vertices[i] = temp_vertices[i];
-    }
-    mesh->verticesCount = temp_vertices.count();
-
-    mesh->indices = new GLushort[temp_indices.count()];
-    for (int i = 0; i < temp_indices.count(); ++i)
-    {
-        mesh->indices[i] = temp_indices[i];
-    }
-    mesh->indicesCount = temp_indices.count();
 
     return mesh;
 }

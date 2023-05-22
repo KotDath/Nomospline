@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QVector>
 #include <QVector3D>
 #include <QOpenGLBuffer>
 
@@ -10,8 +11,6 @@ struct VertexData
 
 struct Mesh
 {
-    VertexData* vertices;
-    GLsizei verticesCount;
-    GLushort* indices;
-    GLsizei indicesCount;
+    QVector<VertexData> vertices;
+    QVector<GLushort> indices;
 };

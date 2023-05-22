@@ -2,7 +2,9 @@
 
 #include <QMainWindow>
 
-#include "engine/FileLoader.h"
+#include "engine/MeshLoader.h"
+#include "engine/SplineLoader.h"
+
 #include "OpenGLWindow.h"
 
 class MainWindow : public QMainWindow
@@ -15,6 +17,7 @@ private slots:
     void importFile();
 
 private:
-    FileLoader* meshLoader;
+    MeshLoader meshLoader;
+    SplineLoader splineLoader;
     OpenGLWindow *openglWidget{};
 };

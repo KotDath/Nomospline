@@ -13,7 +13,7 @@ public:
 
     virtual ~GeometryEngine();
 
-    void draw(QOpenGLShaderProgram *program, const Mesh* mesh);
+    void draw(QOpenGLShaderProgram *program, const Mesh* mesh, GLenum drawMode);
 
 private:
     void init();

@@ -8,7 +8,7 @@
 #include "widget/OpenGLWindow.h"
 #include "engine/MeshLoader.h"
 
-MainWindow::MainWindow() : meshLoader(new MeshLoader), openglWidget(new OpenGLWindow)
+MainWindow::MainWindow() : meshLoader(), splineLoader(), openglWidget(new OpenGLWindow)
 {
 
     setWindowIcon(QIcon(":/images/img.png"));
@@ -30,7 +30,6 @@ MainWindow::MainWindow() : meshLoader(new MeshLoader), openglWidget(new OpenGLWi
     setCentralWidget(mainWidget);
 
 
-
     auto *layout = new QVBoxLayout;
 
     layout->addWidget(openglWidget);
@@ -43,15 +42,38 @@ MainWindow::MainWindow() : meshLoader(new MeshLoader), openglWidget(new OpenGLWi
 void MainWindow::importFile()
 {
     auto fileName = QFileDialog::getOpenFileName(this,
-                                            QDir::homePath(), "", tr("NURBS Spline or mesh (*.obj *.d3m)"));
-    if (fileName.endsWith(".obj", Qt::CaseInsensitive)) {
-        qDebug() << "mesh";
-        auto* mesh = meshLoader->load(fileName);
-        openglWidget->addGeometry(mesh);
-    }
+                                                 QDir::homePath(), "", tr("NURBS Spline or mesh (*.obj *.d3m)"));
+    if (fileName.endsWith(".obj", Qt::CaseInsensitive))
+    {
+        bool isSpline = false;
+        QFile file(fileName);
+        if (file.open(QIODevice::ReadOnly | QIODevice::Text))
+        {
+            QTextStream stream(&file);
+            while (!stream.atEnd())
+            {
+                QString line = stream.readLine();
+                if (line.contains("cstype rat bspline", Qt::CaseInsensitive))
+                {
+                    isSpline = true;
+                    break;
+                }
+            }
+            file.close();
+        }
 
-    if (fileName.endsWith(".d3m", Qt::CaseInsensitive)) {
-        qDebug() << "NURBS";
+
+        if (isSpline)
+        {
+            auto *spline = splineLoader.load(fileName);
+
+        } else
+        {
+            auto *mesh = meshLoader.load(fileName);
+            openglWidget->addGeometry(mesh);
+        }
+
+
     }
 
     qDebug() << fileName;

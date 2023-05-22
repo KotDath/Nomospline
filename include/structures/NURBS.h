@@ -8,12 +8,19 @@
 struct NURBS {
 
     Mesh* evaluate();
+    void init();
 
-    QVector4D* controlPoints; // (x, y, z, w где w - вес)
-    GLsizei controlPointsCount;
-    GLfloat* knotU;
-    GLsizei uSize;
-    GLfloat* knotV;
-    GLsizei vSize;
+    QVector<QVector3D> controlPoints; // (x, y, z)
+    QVector<GLfloat> knotU;
+    QVector<GLfloat> knotV;
+
+    GLsizei uDegree;
+    GLsizei vDegree;
+
+
+private:
+    int findSpan(GLsizei degree, const QVector<GLfloat>& knots, GLfloat param);
+    std::vector<GLfloat> basicFunctions(GLsizei deg, GLsizei span, const QVector<GLfloat>& knots, GLfloat u);
+
 
 };
