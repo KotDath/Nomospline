@@ -1,12 +1,12 @@
 #pragma once
 
-#include <QOpenGLFunctions>
+#include <QOpenGLFunctions_4_5_Core>
 #include <QOpenGLShaderProgram>
 
 #include "structures/Mesh.h"
 
 
-class GeometryEngine : protected QOpenGLFunctions
+class GeometryEngine : protected QOpenGLFunctions_4_5_Core
 {
 public:
     GeometryEngine();

@@ -5,6 +5,7 @@
 #include <QOpenGLShaderProgram>
 #include "engine/GeometryEngine.h"
 #include "engine/Camera.h"
+#include "structures/NURBS.h"
 
 
 class OpenGLWindow : public QOpenGLWidget, protected QOpenGLFunctions
@@ -28,15 +29,31 @@ protected:
 
 public:
     void addGeometry(Mesh *newMesh);
+    void addSpline(NURBS *newSpline);
     void clear();
+    void evaluateSplines();
+
+public slots:
+    void setPoint(bool point);
+    void setLine(bool line);
+    void setTriangle(bool triangle);
 
 private:
     QOpenGLShaderProgram meshProgram;
     QOpenGLShaderProgram pointsProgram;
+    QOpenGLShaderProgram linesProgram;
     GeometryEngine *engine;
     Camera camera;
     QVector<Mesh*> meshes;
+    QVector<Mesh*> splineMeshes;
+    QVector<NURBS*> splines;
     QMatrix4x4 model;
 
     QPoint previousMousePosition;
+
+
+
+    bool isPoint = false;
+    bool isLines = false;
+    bool isTriangles = false;
 };

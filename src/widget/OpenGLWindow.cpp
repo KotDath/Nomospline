@@ -30,18 +30,50 @@ void OpenGLWindow::paintGL()
 
     // Set modelview-projection model
     meshProgram.setUniformValue("mvp_matrix", camera.getProjection() * camera.getView() * model);
-    for (const auto &mesh: meshes)
-    {
-        engine->draw(&meshProgram, mesh, GL_TRIANGLES);
+    if (isTriangles) {
+        for (const auto &mesh: meshes)
+        {
+            engine->draw(&meshProgram, mesh, GL_TRIANGLES);
+        }
+
+        for (const auto &mesh: splineMeshes)
+        {
+            engine->draw(&meshProgram, mesh, GL_TRIANGLES);
+        }
+    }
+
+    linesProgram.bind();
+
+    // Set modelview-projection model
+    linesProgram.setUniformValue("mvp_matrix", camera.getProjection() * camera.getView() * model);
+
+    if (isLines) {
+        for (const auto &mesh: meshes)
+        {
+            engine->draw(&meshProgram, mesh, GL_LINES);
+        }
+
+        for (const auto &mesh: splineMeshes)
+        {
+            engine->draw(&meshProgram, mesh, GL_LINES);
+        }
     }
 
     pointsProgram.bind();
 
     // Set modelview-projection model
     pointsProgram.setUniformValue("mvp_matrix", camera.getProjection() * camera.getView() * model);
-    for (const auto &mesh: meshes)
-    {
-        engine->draw(&pointsProgram, mesh, GL_POINTS);
+    if (isPoint) {
+        for (const auto &mesh: meshes)
+        {
+            engine->draw(&pointsProgram, mesh, GL_POINTS);
+        }
+
+        for (const auto &mesh: splineMeshes)
+        {
+            engine->draw(&pointsProgram, mesh, GL_POINTS);
+        }
+
     }
 
 
@@ -87,6 +119,21 @@ void OpenGLWindow::initializeGL()
 
     // Bind shader pipeline for use
     if (!pointsProgram.bind())
+        close();
+
+    if (!linesProgram.addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/lines/vshader.glsl"))
+        close();
+
+    // Compile fragment shader
+    if (!linesProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/lines/fshader.glsl"))
+        close();
+
+    // Link shader pipeline
+    if (!linesProgram.link())
+        close();
+
+    // Bind shader pipeline for use
+    if (!linesProgram.bind())
         close();
 
     engine = new GeometryEngine;
@@ -146,15 +193,62 @@ OpenGLWindow::~OpenGLWindow()
     clear();
     delete engine;
 
+
 }
 
 void OpenGLWindow::clear()
 {
-    for (int i = 0; i < meshes.count(); ++i)
-    {
-        delete meshes[i];
+    for (auto mesh : meshes) {
+        delete mesh;
+    }
+
+    for (auto mesh : splineMeshes) {
+        delete mesh;
+    }
+
+    for (auto spline : splines) {
+        delete spline;
     }
 
     meshes.clear();
+    splineMeshes.clear();
+    splines.clear();
+    update();
+}
+
+void OpenGLWindow::addSpline(NURBS *newSpline)
+{
+    splines.append(newSpline);
+}
+
+void OpenGLWindow::evaluateSplines()
+{
+    for (auto mesh : splineMeshes) {
+        delete mesh;
+    }
+    splineMeshes.clear();
+
+    for (const auto& spline : splines) {
+        splineMeshes.append(spline->evaluate());
+    }
+
+    update();
+}
+
+void OpenGLWindow::setPoint(bool point)
+{
+    isPoint = point;
+    update();
+}
+
+void OpenGLWindow::setLine(bool line)
+{
+    isLines = line;
+    update();
+}
+
+void OpenGLWindow::setTriangle(bool triangle)
+{
+    isTriangles = triangle;
     update();
 }

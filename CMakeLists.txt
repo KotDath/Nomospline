@@ -19,7 +19,7 @@ find_package(Qt6 COMPONENTS
 include_directories(include)
 
 SET(ENGINE_SRC src/engine/GeometryEngine.cpp src/engine/MeshLoader.cpp src/engine/Camera.cpp src/engine/SplineLoader.cpp)
-SET(WIDGET_SRC src/widget/OpenGLWindow.cpp src/widget/MainWindow.cpp)
+SET(WIDGET_SRC src/widget/OpenGLWindow.cpp src/widget/MainWindow.cpp src/widget/ConfigureWidget.cpp)
 SET(STRUCTURES_SRC src/structures/NURBS.cpp)
 
 add_executable(Nomospline main.cpp ${ENGINE_SRC} ${WIDGET_SRC} ${STRUCTURES_SRC} shaders.qrc images.qrc)

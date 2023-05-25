@@ -14,7 +14,7 @@ public:
     MainWindow();
 
 private slots:
-    void importFile();
+    void importMesh();
 
 private:
     MeshLoader meshLoader;

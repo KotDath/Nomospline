@@ -10,13 +10,15 @@ struct NURBS {
     Mesh* evaluate();
     void init();
 
-    QVector<QVector3D> controlPoints; // (x, y, z)
+    QVector<QVector<QVector4D>> controlPoints; // (x, y, z, w)
     QVector<GLfloat> knotU;
     QVector<GLfloat> knotV;
 
     GLsizei uDegree;
     GLsizei vDegree;
 
+    VertexData getPoint(GLfloat u, GLfloat v);
+    std::pair<QVector3D, QVector3D> getDerivatives(GLfloat u, GLfloat v);
 
 private:
     int findSpan(GLsizei degree, const QVector<GLfloat>& knots, GLfloat param);

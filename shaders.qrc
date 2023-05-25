@@ -2,6 +2,8 @@
     <qresource prefix="/">
         <file>shaders/mesh/vshader.glsl</file>
         <file>shaders/mesh/fshader.glsl</file>
+        <file>shaders/lines/vshader.glsl</file>
+        <file>shaders/lines/fshader.glsl</file>
         <file>shaders/points/vshader.glsl</file>
         <file>shaders/points/fshader.glsl</file>
     </qresource>

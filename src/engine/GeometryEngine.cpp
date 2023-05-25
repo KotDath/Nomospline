@@ -39,9 +39,23 @@ void GeometryEngine::draw(QOpenGLShaderProgram *program, const Mesh *mesh, GLenu
         // Offset for texture coordinate
         offset += sizeof(QVector3D);
 
-        if (drawMode == GL_POINTS) {
-            glDrawArrays(drawMode, 0, mesh->vertices.count());
-        } else {
+        if (drawMode == GL_POINTS)
+        {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+            glDrawElements(drawMode, mesh->indices.count(), GL_UNSIGNED_SHORT, nullptr);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        }
+
+        if (drawMode == GL_LINES)
+        {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            glDrawElements(drawMode, mesh->indices.count(), GL_UNSIGNED_SHORT, nullptr);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        }
+
+        if (drawMode == GL_TRIANGLES)
+        {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
             glDrawElements(drawMode, mesh->indices.count(), GL_UNSIGNED_SHORT, nullptr);
         }
 
