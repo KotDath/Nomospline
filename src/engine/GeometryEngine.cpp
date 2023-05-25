@@ -1,5 +1,7 @@
 #include "engine/GeometryEngine.h"
 
+#define GL_NORMALS                        0x0011
+
 GeometryEngine::GeometryEngine()
         : indexBuf(QOpenGLBuffer::IndexBuffer)
 {
@@ -57,6 +59,11 @@ void GeometryEngine::draw(QOpenGLShaderProgram *program, const Mesh *mesh, GLenu
         {
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
             glDrawElements(drawMode, mesh->indices.count(), GL_UNSIGNED_SHORT, nullptr);
+        }
+
+        if (drawMode == GL_NORMALS)
+        {
+            glDrawElements(GL_LINES, mesh->indices.count(), GL_UNSIGNED_SHORT, nullptr);
         }
 
     }

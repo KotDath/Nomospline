@@ -17,8 +17,9 @@ struct NURBS {
     GLsizei uDegree;
     GLsizei vDegree;
 
-    VertexData getPoint(GLfloat u, GLfloat v);
+    QVector3D getPoint(GLfloat u, GLfloat v);
     std::pair<QVector3D, QVector3D> getDerivatives(GLfloat u, GLfloat v);
+    QVector3D getNormal(GLfloat u, GLfloat v);
 
 private:
     int findSpan(GLsizei degree, const QVector<GLfloat>& knots, GLfloat param);

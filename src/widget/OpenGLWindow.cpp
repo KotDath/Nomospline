@@ -2,6 +2,8 @@
 
 #include "widget/OpenGLWindow.h"
 
+#define GL_NORMALS                        0x0011
+
 void OpenGLWindow::initShaders()
 {
 
@@ -50,12 +52,19 @@ void OpenGLWindow::paintGL()
     if (isLines) {
         for (const auto &mesh: meshes)
         {
-            engine->draw(&meshProgram, mesh, GL_LINES);
+            engine->draw(&linesProgram, mesh, GL_LINES);
         }
 
         for (const auto &mesh: splineMeshes)
         {
-            engine->draw(&meshProgram, mesh, GL_LINES);
+            engine->draw(&linesProgram, mesh, GL_LINES);
+        }
+    }
+
+    if (isNormal) {
+        for (const auto &mesh: normalMeshes)
+        {
+            engine->draw(&linesProgram, mesh, GL_NORMALS);
         }
     }
 
@@ -137,10 +146,11 @@ void OpenGLWindow::initializeGL()
         close();
 
     engine = new GeometryEngine;
-    glClearColor(0, 1, 0, 1);
+    glClearColor(0, 0, 0, 1);
     initShaders();
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
+    glCullFace(GL_FRONT_AND_BACK);
     glEnable(GL_PROGRAM_POINT_SIZE);
 
 
@@ -206,12 +216,17 @@ void OpenGLWindow::clear()
         delete mesh;
     }
 
+    for (auto mesh : normalMeshes) {
+        delete mesh;
+    }
+
     for (auto spline : splines) {
         delete spline;
     }
 
     meshes.clear();
     splineMeshes.clear();
+    normalMeshes.clear();
     splines.clear();
     update();
 }
@@ -250,5 +265,47 @@ void OpenGLWindow::setLine(bool line)
 void OpenGLWindow::setTriangle(bool triangle)
 {
     isTriangles = triangle;
+    update();
+}
+
+void OpenGLWindow::setNormal(bool normal)
+{
+    isNormal = normal;
+    if (isNormal) {
+        /*for (auto mesh : meshes) {
+            auto* newMesh = new Mesh();
+            for (const auto& vertice : mesh->vertices) {
+                auto tmp = vertice;
+                newMesh->vertices.append(tmp);
+                newMesh->indices.append(newMesh->vertices.count() - 1);
+                tmp.position += vertice.normal;
+                newMesh->vertices.append(tmp);
+                newMesh->indices.append(newMesh->vertices.count() - 1);
+
+            }
+
+            normalMeshes.append(newMesh);
+        }*/
+
+        for (auto mesh : splineMeshes) {
+            auto* newMesh = new Mesh();
+            for (const auto& vertice : mesh->vertices) {
+                auto tmp = vertice;
+                newMesh->vertices.append(tmp);
+                newMesh->indices.append(newMesh->vertices.count() - 1);
+                tmp.position += vertice.normal * 0.1;
+                newMesh->vertices.append(tmp);
+                newMesh->indices.append(newMesh->vertices.count() - 1);
+            }
+
+            normalMeshes.append(newMesh);
+        }
+    } else {
+        for (auto mesh : normalMeshes) {
+            delete mesh;
+        }
+
+        normalMeshes.clear();
+    }
     update();
 }

@@ -37,7 +37,7 @@ public slots:
     void setPoint(bool point);
     void setLine(bool line);
     void setTriangle(bool triangle);
-
+    void setNormal(bool normal);
 private:
     QOpenGLShaderProgram meshProgram;
     QOpenGLShaderProgram pointsProgram;
@@ -46,8 +46,11 @@ private:
     Camera camera;
     QVector<Mesh*> meshes;
     QVector<Mesh*> splineMeshes;
+    QVector<Mesh*> normalMeshes;
     QVector<NURBS*> splines;
     QMatrix4x4 model;
+
+    QVector<QVector<QVector3D>> PointWithNormals;
 
     QPoint previousMousePosition;
 
@@ -56,4 +59,5 @@ private:
     bool isPoint = false;
     bool isLines = false;
     bool isTriangles = false;
+    bool isNormal = false;
 };

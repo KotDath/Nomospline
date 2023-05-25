@@ -73,11 +73,11 @@ Mesh* MeshLoader::load(const QString &path)
         if (line.startsWith("v "))
         {
             QStringList words = line.split(" ");
-            mesh->vertices.append({QVector3D(
+            mesh->vertices.append(QVector3D(
                     words[1].toFloat(),
                     words[2].toFloat(),
                     words[3].toFloat()
-            )});
+            ));
         }
     }
 
