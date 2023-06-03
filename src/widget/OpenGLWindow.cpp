@@ -150,7 +150,6 @@ void OpenGLWindow::initializeGL()
     initShaders();
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
-    glCullFace(GL_FRONT_AND_BACK);
     glEnable(GL_PROGRAM_POINT_SIZE);
 
 
@@ -293,7 +292,7 @@ void OpenGLWindow::setNormal(bool normal)
                 auto tmp = vertice;
                 newMesh->vertices.append(tmp);
                 newMesh->indices.append(newMesh->vertices.count() - 1);
-                tmp.position += vertice.normal * 0.1;
+                tmp.position += vertice.normal * normalSize;
                 newMesh->vertices.append(tmp);
                 newMesh->indices.append(newMesh->vertices.count() - 1);
             }
@@ -308,4 +307,9 @@ void OpenGLWindow::setNormal(bool normal)
         normalMeshes.clear();
     }
     update();
+}
+
+void OpenGLWindow::setNormalLength(float size)
+{
+    normalSize = size;
 }

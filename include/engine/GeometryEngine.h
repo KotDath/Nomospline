@@ -4,6 +4,8 @@
 #include <QOpenGLShaderProgram>
 
 #include "structures/Mesh.h"
+#include "structures/NURBS.h"
+
 
 
 class GeometryEngine : protected QOpenGLFunctions_4_5_Core
@@ -14,6 +16,7 @@ public:
     virtual ~GeometryEngine();
 
     void draw(QOpenGLShaderProgram *program, const Mesh* mesh, GLenum drawMode);
+    void draw(QOpenGLShaderProgram *program, const NURBS* nurbs);
 
 private:
     void init();

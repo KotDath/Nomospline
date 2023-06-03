@@ -32,6 +32,7 @@ public:
     void addSpline(NURBS *newSpline);
     void clear();
     void evaluateSplines();
+    void setNormalLength(float size);
 
 public slots:
     void setPoint(bool point);
@@ -60,4 +61,6 @@ private:
     bool isLines = false;
     bool isTriangles = false;
     bool isNormal = false;
+
+    float normalSize = 1.0f;
 };
