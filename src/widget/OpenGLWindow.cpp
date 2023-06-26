@@ -24,14 +24,93 @@ void OpenGLWindow::paintGL()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // Enable depth buffer
-    glEnable(GL_DEPTH_TEST);
 
-
+    meshProgram.link();
     meshProgram.bind();
 
     // Set modelview-projection model
-    meshProgram.setUniformValue("mvp_matrix", camera.getProjection() * camera.getView() * model);
+    int projection = meshProgram.uniformLocation("projection");
+    if (projection != -1)
+    {
+        meshProgram.setUniformValue(projection, camera.getProjection());
+    }
+
+    int u_ModelView = meshProgram.uniformLocation("modelview");
+    if (u_ModelView != -1)
+    {
+        meshProgram.setUniformValue(u_ModelView, camera.getView() * model);
+    }
+
+    int u_NormalMat = meshProgram.uniformLocation("normalMat");
+    if (u_NormalMat != -1)
+    {
+        auto normalMat = (camera.getView() * model).inverted().transposed();
+        //QMatrix4x4 normalMat;
+        //normalMat.setToIdentity();
+        meshProgram.setUniformValue(u_NormalMat, normalMat);
+    }
+
+    int LightPosition = meshProgram.uniformLocation("lightPos");
+    if (LightPosition != -1)
+    {
+        meshProgram.setUniformValue(LightPosition, 10, 10, 10);
+    }
+
+    int Kd = meshProgram.uniformLocation("Kd");
+    if (Kd != -1)
+    {
+        meshProgram.setUniformValue(Kd, 0.5f);
+    }
+
+    int Ka = meshProgram.uniformLocation("Ka");
+    if (Ka != -1)
+    {
+        meshProgram.setUniformValue(Ka, 0.8f);
+    }
+
+    int Ks = meshProgram.uniformLocation("Ks");
+    if (Ks != -1)
+    {
+        meshProgram.setUniformValue(Ks, 0.3f);
+    }
+
+    int Shininess = meshProgram.uniformLocation("shininessVal");
+    if (Shininess != -1)
+    {
+        meshProgram.setUniformValue(Shininess, 20.f);
+    }
+    int ambientColor = meshProgram.uniformLocation("ambientColor");
+    if (ambientColor != -1)
+    {
+        meshProgram.setUniformValue(ambientColor, 0.133, 0.38, 0.125);
+    }
+
+    int diffuseColor = meshProgram.uniformLocation("diffuseColor");
+    if (diffuseColor != -1)
+    {
+        meshProgram.setUniformValue(diffuseColor, 0.8, 0.4, 0);
+    }
+
+    int specularColor = meshProgram.uniformLocation("specularColor");
+    if (specularColor != -1)
+    {
+        meshProgram.setUniformValue(specularColor, 1, 1, 1);
+    }
+
+
+    if (isTriangles)
+    {
+        for (const auto &mesh: meshes)
+        {
+            engine->draw(&meshProgram, mesh, GL_TRIANGLES);
+        }
+
+        for (const auto &mesh: splineMeshes)
+        {
+            engine->draw(&meshProgram, mesh, GL_TRIANGLES);
+        }
+    }
+    /*
     if (isTriangles) {
         for (const auto &mesh: meshes)
         {
@@ -42,14 +121,15 @@ void OpenGLWindow::paintGL()
         {
             engine->draw(&meshProgram, mesh, GL_TRIANGLES);
         }
-    }
+    }*/
 
     linesProgram.bind();
 
     // Set modelview-projection model
     linesProgram.setUniformValue("mvp_matrix", camera.getProjection() * camera.getView() * model);
 
-    if (isLines) {
+    if (isLines)
+    {
         for (const auto &mesh: meshes)
         {
             engine->draw(&linesProgram, mesh, GL_LINES);
@@ -61,7 +141,8 @@ void OpenGLWindow::paintGL()
         }
     }
 
-    if (isNormal) {
+    if (isNormal)
+    {
         for (const auto &mesh: normalMeshes)
         {
             engine->draw(&linesProgram, mesh, GL_NORMALS);
@@ -72,8 +153,9 @@ void OpenGLWindow::paintGL()
 
     // Set modelview-projection model
     pointsProgram.setUniformValue("mvp_matrix", camera.getProjection() * camera.getView() * model);
-    if (isPoint) {
-        for (const auto &mesh: meshes)
+    if (isPoint)
+    {
+        /*for (const auto &mesh: meshes)
         {
             engine->draw(&pointsProgram, mesh, GL_POINTS);
         }
@@ -81,11 +163,11 @@ void OpenGLWindow::paintGL()
         for (const auto &mesh: splineMeshes)
         {
             engine->draw(&pointsProgram, mesh, GL_POINTS);
-        }
+        }*/
+
+        engine->draw(&pointsProgram, intersectionPoints, GL_POINTS);
 
     }
-
-
 
 
     QOpenGLWidget::paintGL();
@@ -146,11 +228,10 @@ void OpenGLWindow::initializeGL()
         close();
 
     engine = new GeometryEngine;
-    glClearColor(0, 0, 0, 1);
+    glClearColor(1, 1, 1, 1);
     initShaders();
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
     glEnable(GL_PROGRAM_POINT_SIZE);
+    glEnable(GL_DEPTH_TEST);
 
 
     QOpenGLWidget::initializeGL();
@@ -161,7 +242,6 @@ void OpenGLWindow::mouseMoveEvent(QMouseEvent *event)
 
     camera.rotateCameraAroundY(previousMousePosition.x() - event->pos().x());
     camera.rotateCameraAroundX(previousMousePosition.y() - event->pos().y());
-    qDebug() << previousMousePosition.y() - event->pos().y();
     previousMousePosition = event->pos();
     update();
 
@@ -207,19 +287,23 @@ OpenGLWindow::~OpenGLWindow()
 
 void OpenGLWindow::clear()
 {
-    for (auto mesh : meshes) {
+    for (auto mesh: meshes)
+    {
         delete mesh;
     }
 
-    for (auto mesh : splineMeshes) {
+    for (auto mesh: splineMeshes)
+    {
         delete mesh;
     }
 
-    for (auto mesh : normalMeshes) {
+    for (auto mesh: normalMeshes)
+    {
         delete mesh;
     }
 
-    for (auto spline : splines) {
+    for (auto spline: splines)
+    {
         delete spline;
     }
 
@@ -227,6 +311,8 @@ void OpenGLWindow::clear()
     splineMeshes.clear();
     normalMeshes.clear();
     splines.clear();
+    delete intersectionPoints;
+
     update();
 }
 
@@ -237,12 +323,14 @@ void OpenGLWindow::addSpline(NURBS *newSpline)
 
 void OpenGLWindow::evaluateSplines()
 {
-    for (auto mesh : splineMeshes) {
+    for (auto mesh: splineMeshes)
+    {
         delete mesh;
     }
     splineMeshes.clear();
 
-    for (const auto& spline : splines) {
+    for (const auto &spline: splines)
+    {
         splineMeshes.append(spline->evaluate());
     }
 
@@ -270,7 +358,8 @@ void OpenGLWindow::setTriangle(bool triangle)
 void OpenGLWindow::setNormal(bool normal)
 {
     isNormal = normal;
-    if (isNormal) {
+    if (isNormal)
+    {
         /*for (auto mesh : meshes) {
             auto* newMesh = new Mesh();
             for (const auto& vertice : mesh->vertices) {
@@ -286,9 +375,11 @@ void OpenGLWindow::setNormal(bool normal)
             normalMeshes.append(newMesh);
         }*/
 
-        for (auto mesh : splineMeshes) {
-            auto* newMesh = new Mesh();
-            for (const auto& vertice : mesh->vertices) {
+        for (auto mesh: splineMeshes)
+        {
+            auto *newMesh = new Mesh();
+            for (const auto &vertice: mesh->vertices)
+            {
                 auto tmp = vertice;
                 newMesh->vertices.append(tmp);
                 newMesh->indices.append(newMesh->vertices.count() - 1);
@@ -299,8 +390,10 @@ void OpenGLWindow::setNormal(bool normal)
 
             normalMeshes.append(newMesh);
         }
-    } else {
-        for (auto mesh : normalMeshes) {
+    } else
+    {
+        for (auto mesh: normalMeshes)
+        {
             delete mesh;
         }
 
@@ -312,4 +405,31 @@ void OpenGLWindow::setNormal(bool normal)
 void OpenGLWindow::setNormalLength(float size)
 {
     normalSize = size;
+}
+
+void OpenGLWindow::calculateIntersection()
+{
+    intersectionPoints = new Mesh();
+    for (int i = 0; i < splines.length(); ++i)
+    {
+        for (int j = 0; j < i; ++j)
+        {
+            auto intersection = splines[j]->getInitialPoints(splines[i]);
+            for (auto k : intersection)
+            {
+                qDebug() << "Difference: " << (splines[i]->getPoint(k.z(), k.w()) - splines[j]->getPoint(k.x(), k.y())).length();
+                intersectionPoints->vertices.append(splines[i]->getPoint(k.z(), k.w()));
+                intersectionPoints->indices.append(intersectionPoints->indices.length());
+            }
+
+           for (auto point : intersection) {
+                auto iterIntersection = splines[j]->iterPoints(splines[i], point);
+                for (auto p : iterIntersection) {
+                    intersectionPoints->vertices.append(p);
+                    intersectionPoints->indices.append(intersectionPoints->indices.length());
+                }
+            }
+        }
+    }
+
 }

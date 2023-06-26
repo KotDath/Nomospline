@@ -19,6 +19,8 @@ Mesh* MeshLoader::load(const QString &path)
     QTextStream in(&file);
 
     auto* mesh = new Mesh();
+    QVector<QVector3D> tmpVertices;
+    QVector<QVector3D> tmpNormals;
 
     while (!in.atEnd())
     {
@@ -73,12 +75,32 @@ Mesh* MeshLoader::load(const QString &path)
         if (line.startsWith("v "))
         {
             QStringList words = line.split(" ");
-            mesh->vertices.append(QVector3D(
+            tmpVertices.append(QVector3D(
                     words[1].toFloat(),
                     words[2].toFloat(),
                     words[3].toFloat()
             ));
         }
+
+        if (line.startsWith("vn "))
+        {
+            QStringList words = line.split(" ");
+            tmpNormals.append(QVector3D(
+                    words[1].toFloat(),
+                    words[2].toFloat(),
+                    words[3].toFloat()
+            ));
+        }
+    }
+
+    for (int i = 0; i < tmpVertices.count(); ++i)
+    {
+        if (i < tmpNormals.count()) {
+            mesh->vertices.append(VertexData(tmpVertices[i], tmpNormals[i]));
+        } else {
+            mesh->vertices.append(VertexData(tmpVertices[i], QVector3D(0, 0, 0)));
+        }
+
     }
 
     file.close();

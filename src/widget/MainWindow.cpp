@@ -30,6 +30,10 @@ MainWindow::MainWindow() : meshLoader(), splineLoader(), openglWidget(new OpenGL
     fileMenu->addAction(evaluateAction);
     connect(evaluateAction, &QAction::triggered, openglWidget, &OpenGLWindow::evaluateSplines);
 
+    auto *calculatePoints = new QAction(tr("&Calculate Intersection"), this);
+    fileMenu->addAction(calculatePoints);
+    connect(calculatePoints, &QAction::triggered, openglWidget, &OpenGLWindow::calculateIntersection);
+
     auto *mainWidget = new QSplitter(Qt::Horizontal, this);;
     setCentralWidget(mainWidget);
 
@@ -75,11 +79,6 @@ void MainWindow::importMesh()
         if (isSpline)
         {
             auto *spline = splineLoader.load(fileName);
-            qDebug() << spline->controlPoints;
-            qDebug() << spline->knotU;
-            qDebug() << spline->knotV;
-            qDebug() << spline->uDegree;
-            qDebug() << spline->vDegree;
             openglWidget->addSpline(spline);
         } else
         {

@@ -1,14 +1,14 @@
 #pragma once
 
 #include <QOpenGLWidget>
-#include <QOpenGLFunctions>
+#include <QOpenGLFunctions_4_5_Core>
 #include <QOpenGLShaderProgram>
 #include "engine/GeometryEngine.h"
 #include "engine/Camera.h"
 #include "structures/NURBS.h"
 
 
-class OpenGLWindow : public QOpenGLWidget, protected QOpenGLFunctions
+class OpenGLWindow : public QOpenGLWidget, protected QOpenGLFunctions_4_5_Core
 {
 private:
     virtual ~OpenGLWindow();
@@ -39,6 +39,7 @@ public slots:
     void setLine(bool line);
     void setTriangle(bool triangle);
     void setNormal(bool normal);
+    void calculateIntersection();
 private:
     QOpenGLShaderProgram meshProgram;
     QOpenGLShaderProgram pointsProgram;
@@ -50,6 +51,8 @@ private:
     QVector<Mesh*> normalMeshes;
     QVector<NURBS*> splines;
     QMatrix4x4 model;
+
+    Mesh* intersectionPoints;
 
     QVector<QVector<QVector3D>> PointWithNormals;
 

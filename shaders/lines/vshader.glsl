@@ -6,12 +6,12 @@ precision mediump float;
 
 uniform mat4 mvp_matrix;
 
-attribute vec3 a_position;
+attribute vec3 a_Position;
 varying vec4 fragColor;
 
 void main()
 {
     fragColor = vec4(1, 0, 0.7, 1);
     gl_PointSize = 2;
-    gl_Position = mvp_matrix * vec4(a_position, 1.0);
+    gl_Position = mvp_matrix * vec4(a_Position, 1.0);
 }
