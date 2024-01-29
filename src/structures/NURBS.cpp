@@ -4,12 +4,20 @@
 #include "structures/NURBS.h"
 #include <QSet>
 
-float deltaAlpha = M_PI / 20;
-float stepMin = 0.01;
-float stepMax = 0.1;
+float deltaAlpha = M_PI / 10;
+float stepMin = 0.05;
+float stepMax = 0.5;
+
+class NotBoundException : public std::exception {
+public:
+    char * what () {
+        return "Point not bound";
+    }
+};
 
 Mesh *NURBS::evaluate()
 {
+    Timer timer("Evaluate mesh started", "Evaluate mesh finished");
     auto mesh = new Mesh();
     float N = 100, M = 100;
     float du = (knotU.last() - knotU.first()) / (N - 1), dv = (knotV.last() - knotV.first()) / (M - 1);
@@ -282,8 +290,10 @@ std::pair<QVector3D, QVector3D> NURBS::getDerivatives2(GLfloat u, GLfloat v)
     int span_ddu = span_u;
     int span_ddv = span_v;
 
-    auto Nddu = basicFunctions(uDegree - 2, span_ddu, knotU, u);
-    auto Nddv = basicFunctions(vDegree - 2, span_ddv, knotV, v);
+    std::vector<float> Nddu, Nddv;
+
+    QVector3D der_v(0, 0, 0);
+    QVector3D der_u(0, 0, 0);
 
 
     QVector4D point;
@@ -312,150 +322,156 @@ std::pair<QVector3D, QVector3D> NURBS::getDerivatives2(GLfloat u, GLfloat v)
     point.setZ(0);
     point.setW(0);
 
-    for (int j = 0; j <= vDegree; j++)
-    {
-        QVector4D temp;
-        for (int i = 0; i < uDegree; i++)
+
+    if (uDegree >= 2) {
+        for (int j = 0; j <= vDegree; j++)
         {
-            auto tmp1 = controlPoints[span_u - uDegree + i + 1][span_v - vDegree + j];
-            tmp1.setX(tmp1.x() * tmp1.w());
-            tmp1.setY(tmp1.y() * tmp1.w());
-            tmp1.setZ(tmp1.z() * tmp1.w());
+            QVector4D temp;
+            for (int i = 0; i < uDegree; i++)
+            {
+                auto tmp1 = controlPoints[span_u - uDegree + i + 1][span_v - vDegree + j];
+                tmp1.setX(tmp1.x() * tmp1.w());
+                tmp1.setY(tmp1.y() * tmp1.w());
+                tmp1.setZ(tmp1.z() * tmp1.w());
 
-            auto tmp2 = controlPoints[span_u - uDegree + i][span_v - vDegree + j];
-            tmp2.setX(tmp2.x() * tmp2.w());
-            tmp2.setY(tmp2.y() * tmp2.w());
-            tmp2.setZ(tmp2.z() * tmp2.w());
+                auto tmp2 = controlPoints[span_u - uDegree + i][span_v - vDegree + j];
+                tmp2.setX(tmp2.x() * tmp2.w());
+                tmp2.setY(tmp2.y() * tmp2.w());
+                tmp2.setZ(tmp2.z() * tmp2.w());
 
-            auto current = uDegree * (tmp1 - tmp2) /
-                           (knotU[span_u + i + 1] - knotU[span_u - uDegree + i + 1]);
-            temp += (Ndu[i]) * current;
+                auto current = uDegree * (tmp1 - tmp2) /
+                               (knotU[span_u + i + 1] - knotU[span_u - uDegree + i + 1]);
+                temp += (Ndu[i]) * current;
+            }
+
+            point += Nv[j] * temp;
         }
 
-        point += Nv[j] * temp;
+        QVector3D dA(point.x(), point.y(), point.z());
+        float dB = point.w();
+
+        point.setX(0);
+        point.setY(0);
+        point.setZ(0);
+        point.setW(0);
+
+        Nddu = basicFunctions(uDegree - 2, span_ddu, knotU, u);
+
+        for (int j = 0; j <= vDegree; j++)
+        {
+            QVector4D temp;
+            for (int i = 0; i < uDegree - 1; i++)
+            {
+                auto tmp1 = controlPoints[span_u - uDegree + i + 2][span_v - vDegree + j];
+                tmp1.setX(tmp1.x() * tmp1.w());
+                tmp1.setY(tmp1.y() * tmp1.w());
+                tmp1.setZ(tmp1.z() * tmp1.w());
+
+                auto tmp2 = controlPoints[span_u - uDegree + i + 1][span_v - vDegree + j];
+                tmp2.setX(tmp2.x() * tmp2.w());
+                tmp2.setY(tmp2.y() * tmp2.w());
+                tmp2.setZ(tmp2.z() * tmp2.w());
+
+                auto tmp3 = controlPoints[span_u - uDegree + i][span_v - vDegree + j];
+                tmp3.setX(tmp3.x() * tmp3.w());
+                tmp3.setY(tmp3.y() * tmp3.w());
+                tmp3.setZ(tmp3.z() * tmp3.w());
+
+                auto pi = uDegree * (tmp1 - tmp2) / (knotU[span_u + i + 2] - knotU[span_u - uDegree + i + 2]);
+                auto pi_1 = uDegree * (tmp2 - tmp3) / (knotU[span_u + i + 1] - knotU[span_u - uDegree + i + 1]);
+
+                auto current = (uDegree - 1) * (pi - pi_1) /
+                               (knotU[span_u + i + 1] - knotU[span_u - uDegree + i + 2]);
+                temp += (Nddu[i]) * current;
+            }
+
+            point += Nv[j] * temp;
+        }
+
+        QVector3D ddA(point.x(), point.y(), point.z());
+        float ddB = point.w();
+
+        der_u = ddA / B - 2 * dA * dB / (B * B) - A * (ddB / (B * B) - 2 * dB * dB / (B * B * B));
     }
 
-    QVector3D dA(point.x(), point.y(), point.z());
-    float dB = point.w();
+
+
+
 
     point.setX(0);
     point.setY(0);
     point.setZ(0);
     point.setW(0);
 
-    for (int j = 0; j <= vDegree; j++)
-    {
-        QVector4D temp;
-        for (int i = 0; i < uDegree - 1; i++)
-        {
-            auto tmp1 = controlPoints[span_u - uDegree + i + 2][span_v - vDegree + j];
-            tmp1.setX(tmp1.x() * tmp1.w());
-            tmp1.setY(tmp1.y() * tmp1.w());
-            tmp1.setZ(tmp1.z() * tmp1.w());
+    if (vDegree >= 2) {
 
-            auto tmp2 = controlPoints[span_u - uDegree + i + 1][span_v - vDegree + j];
-            tmp2.setX(tmp2.x() * tmp2.w());
-            tmp2.setY(tmp2.y() * tmp2.w());
-            tmp2.setZ(tmp2.z() * tmp2.w());
+        for (int i = 0; i <= uDegree; i++) {
+            QVector4D temp;
+            for (int j = 0; j < vDegree; j++) {
+                auto tmp1 = controlPoints[span_u - uDegree + i][span_v - vDegree + j + 1];
+                tmp1.setX(tmp1.x() * tmp1.w());
+                tmp1.setY(tmp1.y() * tmp1.w());
+                tmp1.setZ(tmp1.z() * tmp1.w());
 
-            auto tmp3 = controlPoints[span_u - uDegree + i][span_v - vDegree + j];
-            tmp3.setX(tmp3.x() * tmp3.w());
-            tmp3.setY(tmp3.y() * tmp3.w());
-            tmp3.setZ(tmp3.z() * tmp3.w());
+                auto tmp2 = controlPoints[span_u - uDegree + i][span_v - vDegree + j];
+                tmp2.setX(tmp2.x() * tmp2.w());
+                tmp2.setY(tmp2.y() * tmp2.w());
+                tmp2.setZ(tmp2.z() * tmp2.w());
 
-            auto pi = uDegree * (tmp1 - tmp2) / (knotU[span_u + i + 2] - knotU[span_u - uDegree + i + 2]);
-            auto pi_1 = uDegree * (tmp2 - tmp3) / (knotU[span_u + i + 1] - knotU[span_u - uDegree + i + 1]);
+                auto current = vDegree * (tmp1 - tmp2) /
+                               (knotV[span_v + j + 1] - knotV[span_v - vDegree + j + 1]);
+                temp += (Ndv[j]) * current;
+            }
 
-            auto current = (uDegree - 1) * (pi - pi_1) /
-                           (knotU[span_u + i + 1] - knotU[span_u - uDegree + i + 2]);
-            temp += (Nddu[i]) * current;
+            point += Nu[i] * temp;
         }
 
-        point += Nv[j] * temp;
-    }
+        QVector3D dA(point.x(), point.y(), point.z());
+        float dB = point.w();
 
-    QVector3D ddA(point.x(), point.y(), point.z());
-    float ddB = point.w();
+        point.setX(0);
+        point.setY(0);
+        point.setZ(0);
+        point.setW(0);
 
+        Nddv = basicFunctions(vDegree - 2, span_ddv, knotV, v);
 
-    auto der_u = ddA / B - 2 * dA * dB / (B * B) - A * (ddB / (B * B) - 2 * dB * dB / (B * B * B));
+        for (int i = 0; i <= uDegree; i++) {
+            QVector4D temp;
+            for (int j = 0; j < vDegree - 1; j++) {
+                auto tmp1 = controlPoints[span_u - uDegree + i][span_v - vDegree + j + 2];
+                tmp1.setX(tmp1.x() * tmp1.w());
+                tmp1.setY(tmp1.y() * tmp1.w());
+                tmp1.setZ(tmp1.z() * tmp1.w());
 
-    point.setX(0);
-    point.setY(0);
-    point.setZ(0);
-    point.setW(0);
+                auto tmp2 = controlPoints[span_u - uDegree + i][span_v - vDegree + j + 1];
+                tmp2.setX(tmp2.x() * tmp2.w());
+                tmp2.setY(tmp2.y() * tmp2.w());
+                tmp2.setZ(tmp2.z() * tmp2.w());
 
-    for (int i = 0; i <= uDegree; i++)
-    {
-        QVector4D temp;
-        for (int j = 0; j < vDegree; j++)
-        {
-            auto tmp1 = controlPoints[span_u - uDegree + i][span_v - vDegree + j + 1];
-            tmp1.setX(tmp1.x() * tmp1.w());
-            tmp1.setY(tmp1.y() * tmp1.w());
-            tmp1.setZ(tmp1.z() * tmp1.w());
+                auto tmp3 = controlPoints[span_u - uDegree + i][span_v - vDegree + j];
+                tmp3.setX(tmp3.x() * tmp3.w());
+                tmp3.setY(tmp3.y() * tmp3.w());
+                tmp3.setZ(tmp3.z() * tmp3.w());
 
-            auto tmp2 = controlPoints[span_u - uDegree + i][span_v - vDegree + j];
-            tmp2.setX(tmp2.x() * tmp2.w());
-            tmp2.setY(tmp2.y() * tmp2.w());
-            tmp2.setZ(tmp2.z() * tmp2.w());
+                auto pi = vDegree * (tmp1 - tmp2) / (knotV[span_v + j + 2] - knotV[span_v - vDegree + j + 2]);
+                auto pi_1 = vDegree * (tmp2 - tmp3) / (knotV[span_v + j + 1] - knotV[span_v - vDegree + j + 1]);
 
-            auto current = vDegree * (tmp1 - tmp2) /
-                           (knotV[span_v + j + 1] - knotV[span_v - vDegree + j + 1]);
-            temp += (Ndv[j]) * current;
+                auto current = (vDegree - 1) * (pi - pi_1) /
+                               (knotV[span_v + j + 1] - knotV[span_v - vDegree + j + 2]);
+
+                temp += (Nddv[j]) * current;
+            }
+
+            point += Nu[i] * temp;
         }
 
-        point += Nu[i] * temp;
+        QVector3D ddA(point.x(), point.y(), point.z());
+        float ddB = point.w();
+
+        der_v = ddA / B - 2 * dA * dB / (B * B) - A * (ddB / (B * B) - 2 * dB * dB / (B * B * B));
     }
 
-    dA.setX(point.x());
-    dA.setY(point.y());
-    dA.setZ(point.z());
-    dB = point.w();
-
-    point.setX(0);
-    point.setY(0);
-    point.setZ(0);
-    point.setW(0);
-
-    for (int i = 0; i <= uDegree; i++)
-    {
-        QVector4D temp;
-        for (int j = 0; j < vDegree - 1; j++)
-        {
-            auto tmp1 = controlPoints[span_u - uDegree + i][span_v - vDegree + j + 2];
-            tmp1.setX(tmp1.x() * tmp1.w());
-            tmp1.setY(tmp1.y() * tmp1.w());
-            tmp1.setZ(tmp1.z() * tmp1.w());
-
-            auto tmp2 = controlPoints[span_u - uDegree + i][span_v - vDegree + j + 1];
-            tmp2.setX(tmp2.x() * tmp2.w());
-            tmp2.setY(tmp2.y() * tmp2.w());
-            tmp2.setZ(tmp2.z() * tmp2.w());
-
-            auto tmp3 = controlPoints[span_u - uDegree + i][span_v - vDegree + j];
-            tmp3.setX(tmp3.x() * tmp3.w());
-            tmp3.setY(tmp3.y() * tmp3.w());
-            tmp3.setZ(tmp3.z() * tmp3.w());
-
-            auto pi = vDegree * (tmp1 - tmp2) / (knotV[span_v + j + 2] - knotV[span_v - vDegree + j + 2]);
-            auto pi_1 = vDegree * (tmp2 - tmp3) / (knotV[span_v + j + 1] - knotV[span_v - vDegree + j + 1]);
-
-            auto current = (vDegree - 1) * (pi - pi_1) /
-                           (knotV[span_v + j + 1] - knotV[span_v - vDegree + j + 2]);
-
-            temp += (Nddv[j]) * current;
-        }
-
-        point += Nu[i] * temp;
-    }
-
-    ddA.setX(point.x());
-    ddA.setY(point.y());
-    ddA.setZ(point.z());
-    ddB = point.w();
-
-    auto der_v = ddA / B - 2 * dA * dB / (B * B) - A * (ddB / (B * B) - 2 * dB * dB / (B * B * B));
 
     return std::make_pair(der_u, der_v);
 }
@@ -466,7 +482,7 @@ NURBS::getStepRadius(const QVector3D &ur1, const QVector3D &vr2, const QVector3D
 {
 
     float res = abs(QVector3D::dotProduct(ur1, t));
-    float error = 0.0001f;
+    float error = 0.001f;
     float min = std::max(res, error);
 
 
@@ -498,6 +514,11 @@ GLfloat NURBS::getAdaptiveStepU(GLfloat u, GLfloat v)
     auto der2 = getDerivatives2(u, v);
     auto normal = getNormal(u, v);
 
+    if (der2.first.length() < 0.001)
+    {
+        return stepMin;
+    }
+
     auto deltaU = deltaAlpha * der1.first.length() / abs(QVector3D::dotProduct(normal, der2.first));
     if (deltaU < stepMin)
     {
@@ -519,6 +540,11 @@ GLfloat NURBS::getAdaptiveStepV(GLfloat u, GLfloat v)
     auto der2 = getDerivatives2(u, v);
     auto normal = getNormal(u, v);
 
+    if (der2.second.length() < 0.001)
+    {
+        return stepMin;
+    }
+
     auto deltaV = deltaAlpha * der1.second.length() / abs(QVector3D::dotProduct(normal, der2.second));
     if (deltaV < stepMin)
     {
@@ -537,29 +563,132 @@ GLfloat NURBS::getAdaptiveStepV(GLfloat u, GLfloat v)
 QVector<QVector4D> NURBS::getInitialPoints(NURBS *otherSpline)
 {
     QVector<QVector4D> answer;
-    auto du = 0.1;
-    auto dv = 0.1;
-    for (auto U = knotU.first(); U < knotU.last(); U += du)
+
+    float stepU = 2;
+    float stepV = 2;
+
+    auto du1 = (knotU.last() - knotU.first()) / stepU;
+    auto dv1 = (knotV.last() - knotV.first()) / stepV;
+    auto du2 = (otherSpline->knotU.last() - otherSpline->knotU.first()) / stepU;
+    auto dv2 = (otherSpline->knotV.last() - otherSpline->knotV.first()) / stepV;
+
+    for (auto U = knotU.first(); U < knotU.last(); U += du1)
     {
         answer += curveToSurfaceIntersectionU(U, otherSpline);
-        qDebug() << "curve to surface u: " << answer;
+
+        qDebug() << "curve to surface u: ";
+        for (const auto& ans : answer)
+        {
+            qDebug() << ans << this->getPoint(ans[0], ans[1]);
+        }
     }
 
-    for (auto V = knotV.first(); V < knotV.last(); V += dv)
+    answer += curveToSurfaceIntersectionU(knotU.last(), otherSpline);
+
+    qDebug() << "curve to surface u: ";
+    for (const auto& ans : answer)
+    {
+        qDebug() << ans << this->getPoint(ans[0], ans[1]);
+    }
+
+    for (auto V = knotV.first(); V <= knotV.last(); V += dv1)
     {
         answer += curveToSurfaceIntersectionV(V, otherSpline);
-        qDebug() << "curve to surface v: " << answer;
+
+        qDebug() << "curve to surface v: ";
+        for (const auto& ans : answer)
+        {
+            qDebug() << ans << this->getPoint(ans[0], ans[1]);
+        }
     }
 
-    /*for (auto U = otherSpline->knotU.first(); U < otherSpline->knotU.last(); U += du)
+    answer += curveToSurfaceIntersectionV(knotV.last(), otherSpline);
+
+    qDebug() << "curve to surface v: ";
+    for (const auto& ans : answer)
     {
-        answer += otherSpline->curveToSurfaceIntersectionU(U, this);
+        qDebug() << ans << this->getPoint(ans[0], ans[1]);
     }
 
-    for (auto V = otherSpline->knotV.first(); V < otherSpline->knotV.last(); V += dv)
+    for (auto U = otherSpline->knotU.first(); U < otherSpline->knotU.last(); U += du2)
     {
-        answer += otherSpline->curveToSurfaceIntersectionV(V, this);
-    }*/
+
+        auto tmp = otherSpline->curveToSurfaceIntersectionU(U, this);
+        for (auto& elem : tmp)
+        {
+            float tempX = elem.x();
+            float tempY = elem.y();
+            elem.setX(elem.z());
+            elem.setY(elem.w());
+            elem.setZ(tempX);
+            elem.setW(tempY);
+        }
+
+        qDebug() << "curve to surface u: ";
+        for (const auto& ans : tmp)
+        {
+            qDebug() << ans << this->getPoint(ans[0], ans[1]);
+        }
+        answer += tmp;
+    }
+
+    auto tmp = otherSpline->curveToSurfaceIntersectionU(otherSpline->knotU.last(), this);
+    for (auto& elem : tmp)
+    {
+        float tempX = elem.x();
+        float tempY = elem.y();
+        elem.setX(elem.z());
+        elem.setY(elem.w());
+        elem.setZ(tempX);
+        elem.setW(tempY);
+
+        qDebug() << "curve to surface u: ";
+        for (const auto& ans : tmp)
+        {
+            qDebug() << ans << this->getPoint(ans[0], ans[1]);
+        }
+    }
+    answer += tmp;
+
+    for (auto V = otherSpline->knotV.first(); V < otherSpline->knotV.last(); V += dv2)
+    {
+        auto tmp = otherSpline->curveToSurfaceIntersectionV(V, this);
+
+        for (auto& elem : tmp)
+        {
+            float tempX = elem.x();
+            float tempY = elem.y();
+            elem.setX(elem.z());
+            elem.setY(elem.w());
+            elem.setZ(tempX);
+            elem.setW(tempY);
+        }
+        qDebug() << "curve to surface v: ";
+        for (const auto& ans : tmp)
+        {
+            qDebug() << ans << this->getPoint(ans[0], ans[1]);
+        }
+
+        answer += tmp;
+    }
+
+    tmp = otherSpline->curveToSurfaceIntersectionV(otherSpline->knotV.last(), this);
+
+    for (auto& elem : tmp)
+    {
+        float tempX = elem.x();
+        float tempY = elem.y();
+        elem.setX(elem.z());
+        elem.setY(elem.w());
+        elem.setZ(tempX);
+        elem.setW(tempY);
+    }
+    qDebug() << "curve to surface v: ";
+    for (const auto& ans : tmp)
+    {
+        qDebug() << ans << this->getPoint(ans[0], ans[1]);
+    }
+    answer += tmp;
 
     return answer;
 }
@@ -625,14 +754,20 @@ QVector<QVector4D> NURBS::curveToSurfaceIntersectionU(GLfloat u, NURBS *otherSpl
                     QVector3D zeroSolution(tempV + t0, tempA + u0, tempB + v0); // начальное приближение
 
                     // дальше идёт решение системы численным методом(например Ньютона)
-                    auto solution = NewtonSolution(this, otherSpline, zeroSolution, 0, u);
-                    bool inV = solution.x() <= knotV.last() && solution.x() >= knotV.first();
-                    bool inA = solution.y() <= otherSpline->knotU.last() && solution.y() >= otherSpline->knotU.first();
-                    bool inB = solution.z() <= otherSpline->knotV.last() && solution.z() >= otherSpline->knotV.first();
+                    try
+                    {
+                        auto solution = NewtonSolution(this, otherSpline, zeroSolution, 0, u);
+                        QVector4D insertSolution{u, solution.x(), solution.y(), solution.z()};
 
-                    if (inV && inA && inB) {
-                        intersections.append({u, solution.x(), solution.y(), solution.z()});
+                        if (isBound(otherSpline, insertSolution)) {
+                            intersections.append(insertSolution);
+                        }
+                    }catch (NotBoundException& e)
+                    {
+                        qDebug() << e.what();
                     }
+
+
                 }
 
                 tempB += deltaB;
@@ -715,15 +850,18 @@ QVector<QVector4D> NURBS::curveToSurfaceIntersectionV(GLfloat v, NURBS *otherSpl
                     // дальше идёт решение системы численным методом(например Ньютона)
 
 
-                    auto solution = NewtonSolution(this, otherSpline, zeroSolution, 1, v);
-                    bool inU = solution.x() <= knotU.last() && solution.x() >= knotU.first();
-                    bool inA = solution.y() <= otherSpline->knotU.last() && solution.y() >= otherSpline->knotU.first();
-                    bool inB = solution.z() <= otherSpline->knotV.last() && solution.z() >= otherSpline->knotV.first();
-
-                    if (inU && inA && inB) {
-                        intersections.append({solution.x(), v, solution.y(), solution.z()});
+                    try
+                    {
+                        auto solution = NewtonSolution(this, otherSpline, zeroSolution, 1, v);
+                        QVector4D insertSolution{solution.x(), v, solution.y(), solution.z()};
+                        if (isBound(otherSpline, insertSolution))
+                        {
+                            intersections.append(insertSolution);
+                        }
+                    } catch (NotBoundException& e)
+                    {
+                        qDebug() << e.what();
                     }
-
 
                 }
 
@@ -752,6 +890,10 @@ NURBS::getJacobian(NURBS *spline1, NURBS *spline2, int constIndex, GLfloat const
 
     if (constIndex == 0)
     {
+        if (!spline1->isBound(spline2, QVector4D(constValue, current.x(), current.y(), current.z())))
+        {
+            throw NotBoundException();
+        }
         auto der1 = spline1->getDerivatives(constValue, current.x());
         auto der2 = spline2->getDerivatives(current.y(), current.z());
         answer(0, 0) = der1.second.x();
@@ -767,6 +909,10 @@ NURBS::getJacobian(NURBS *spline1, NURBS *spline2, int constIndex, GLfloat const
         answer(2, 2) = -der2.second.z();
     } else
     {
+        if (!spline1->isBound(spline2, QVector4D(current.x(), constValue, current.y(), current.z())))
+        {
+            throw NotBoundException();
+        }
         auto der1 = spline1->getDerivatives(current.x(), constValue);
         auto der2 = spline2->getDerivatives(current.y(), current.z());
         answer(0, 0) = der1.first.x();
@@ -852,7 +998,8 @@ NURBS::NewtonSolution(NURBS *spline1, NURBS *spline2, const QVector3D &zeroSolut
         prev(2, 0) = previous.z();
         auto tmp = prev - jacobian * vec;
         current = {tmp(0, 0), tmp(1, 0), tmp(2, 0)};
-    } while ((current - previous).length() > 0.0001);
+        qDebug() << "Newton accuracy: " << (current - previous).length() << ' ' << current;
+    } while ((current - previous).length() > 0.001);
 
     return current;
 }
@@ -861,6 +1008,11 @@ GLfloat NURBS::getAdaptiveStepCurveU(GLfloat u, GLfloat v)
 {
     auto der1 = getDerivatives(u, v);
     auto der2 = getDerivatives2(u, v);
+
+    if (der2.first.length() < 0.001)
+    {
+        return stepMin;
+    }
 
     auto deltaT = deltaAlpha * der1.first.length() * der1.first.length() /
                   (QVector3D::crossProduct(der1.first, der2.first).length());
@@ -882,6 +1034,11 @@ GLfloat NURBS::getAdaptiveStepCurveV(GLfloat u, GLfloat v)
     auto der1 = getDerivatives(u, v);
     auto der2 = getDerivatives2(u, v);
 
+    if (der2.second.length() < 0.001)
+    {
+        return stepMin;
+    }
+
     auto deltaT = deltaAlpha * der1.second.length() * der1.second.length() /
                   (QVector3D::crossProduct(der1.second, der2.second).length());
     if (deltaT < stepMin)
@@ -896,7 +1053,7 @@ GLfloat NURBS::getAdaptiveStepCurveV(GLfloat u, GLfloat v)
     return deltaT;
 }
 
-QVector<QVector3D> NURBS::iterPoints(NURBS *otherSpline, const QVector4D &point)
+QVector<QVector3D> NURBS::iterPointsPlus(NURBS *otherSpline, const QVector4D &point)
 {
     QVector<QVector3D> result;
 
@@ -905,21 +1062,23 @@ QVector<QVector3D> NURBS::iterPoints(NURBS *otherSpline, const QVector4D &point)
     int iterCount = 0;
 
 
-    while (iterCount < 100)
+    while (isBound(otherSpline, initialPoint))
     {
-
-        bool inU = initialPoint.x() <= knotU.last() && initialPoint.x() >= knotU.first();
-        bool inV = initialPoint.y() <= knotV.last() && initialPoint.y() >= knotV.first();
-        bool inA = initialPoint.z() <= otherSpline->knotU.last() && initialPoint.z() >= otherSpline->knotU.first();
-        bool inB = initialPoint.w() <= otherSpline->knotV.last() && initialPoint.w() >= otherSpline->knotV.first();
-
-        if (!inU || !inV || !inA || !inB)
+        qDebug() << "iteration: " << iterCount << " with point " << initialPoint;
+        auto poi = getPoint(initialPoint.x(), initialPoint.y());
+        if (QVector3D::crossProduct(getNormal(initialPoint.x(), initialPoint.y()),
+                                    otherSpline->getNormal(initialPoint.z(), initialPoint.w())).length() < 0.001) {
+            qDebug() << "Found tangent intersection in point " << initialPoint;
+            return result;
+        }
+        if (!isBound(otherSpline, initialPoint))
         {
             break;
         }
 
         if (iterCount != 0)
         {
+
             result.append(getPoint(initialPoint.x(), initialPoint.y()));
         }
 
@@ -929,15 +1088,133 @@ QVector<QVector3D> NURBS::iterPoints(NURBS *otherSpline, const QVector4D &point)
         auto normal2 = QVector3D::crossProduct(derAB.first, derAB.second).normalized();
         auto t = QVector3D::crossProduct(normal1, normal2);
 
+        if (t.length() < 0.01)
+        {
+            break;
+        }
         auto ur1 = getAdaptiveStepU(initialPoint.x(), initialPoint.y()) * derUV.first;
         auto vr2 = getAdaptiveStepV(initialPoint.x(), initialPoint.y()) * derUV.second;
         auto as1 = otherSpline->getAdaptiveStepU(initialPoint.z(), initialPoint.w()) * derAB.first;
         auto bs2 = otherSpline->getAdaptiveStepV(initialPoint.z(), initialPoint.w()) * derAB.second;
 
         auto app = getStepRadius(ur1, vr2, as1, bs2, t);
-        qDebug() << "r0: " << app;
         auto direction = getDirectionStepRadius(ur1 / derUV.first.length(), vr2 / derUV.second.length(), as1 / derAB.first.length(), bs2 / derAB.second.length(), t);
 
+        auto stepu0 = app * QVector3D::dotProduct(t, derUV.first) / (t.length() * derUV.first.lengthSquared());
+        auto stepv0 = app * QVector3D::dotProduct(t, derUV.second) / (t.length() * derUV.second.lengthSquared());
+        auto stepa0 = app * QVector3D::dotProduct(t, derAB.first) / (t.length() * derAB.first.lengthSquared());
+        auto stepb0 = app * QVector3D::dotProduct(t, derAB.second) / (t.length() * derAB.second.lengthSquared());
+
+        auto u0 = initialPoint.x() + stepu0;
+        auto v0 = initialPoint.y() + stepv0;
+        auto a0 = initialPoint.z() + stepa0;
+        auto b0 = initialPoint.w() + stepb0;
+
+        initialPoint.setX(u0);
+        initialPoint.setY(v0);
+        initialPoint.setZ(a0);
+        initialPoint.setW(b0);
+
+        try
+        {
+            switch (direction)
+            {
+                case 0:
+                {
+                    auto tmp = QVector3D(initialPoint.y(), initialPoint.z(), initialPoint.w());
+                    auto next = NewtonSolution(this, otherSpline, tmp, 0, initialPoint.x());
+                    initialPoint.setY(next.x());
+                    initialPoint.setZ(next.y());
+                    initialPoint.setW(next.z());
+                    break;
+                }
+
+                case 1:
+                {
+                    auto tmp = QVector3D(initialPoint.x(), initialPoint.z(), initialPoint.w());
+                    auto next = NewtonSolution(this, otherSpline, tmp, 1, initialPoint.y());
+                    initialPoint.setX(next.x());
+                    initialPoint.setZ(next.y());
+                    initialPoint.setW(next.z());
+                    break;
+                }
+
+                case 2:
+                {
+                    auto tmp = QVector3D(initialPoint.w(), initialPoint.x(), initialPoint.y());
+                    auto next = NewtonSolution(otherSpline, this, tmp, 0, initialPoint.z());
+                    initialPoint.setX(next.y());
+                    initialPoint.setY(next.z());
+                    initialPoint.setW(next.x());
+                    break;
+                }
+
+                case 3:
+                {
+                    auto tmp = QVector3D(initialPoint.z(), initialPoint.x(), initialPoint.y());
+                    auto next = NewtonSolution(otherSpline, this, tmp, 1, initialPoint.w());
+                    initialPoint.setX(next.y());
+                    initialPoint.setY(next.z());
+                    initialPoint.setZ(next.x());
+                    break;
+                }
+            }
+        } catch (NotBoundException& e)
+        {
+            qDebug() << e.what();
+            return result;
+        }
+
+
+        ++iterCount;
+    }
+
+    return result;
+}
+
+QVector<QVector3D> NURBS::iterPointsMinus(NURBS *otherSpline, const QVector4D &point)
+{
+    QVector<QVector3D> result;
+
+    auto initialPoint = point;
+
+    int iterCount = 0;
+
+
+    while (isBound(otherSpline, initialPoint))
+    {
+        qDebug() << "iteration: " << iterCount << " with point " << initialPoint;
+        auto poi = getPoint(initialPoint.x(), initialPoint.y());
+        if (QVector3D::crossProduct(getNormal(initialPoint.x(), initialPoint.y()),
+                                    otherSpline->getNormal(initialPoint.z(), initialPoint.w())).length() < 0.001) {
+            qDebug() << "Found tangent intersection in point " << initialPoint;
+            return result;
+        }
+
+        if (!isBound(otherSpline, initialPoint))
+        {
+            break;
+        }
+
+        if (iterCount != 0)
+        {
+
+            result.append(getPoint(initialPoint.x(), initialPoint.y()));
+        }
+
+        auto derUV = getDerivatives(initialPoint.x(), initialPoint.y());
+        auto normal1 = QVector3D::crossProduct(derUV.first, derUV.second).normalized();
+        auto derAB = otherSpline->getDerivatives(initialPoint.z(), initialPoint.w());
+        auto normal2 = QVector3D::crossProduct(derAB.first, derAB.second).normalized();
+        auto t = -QVector3D::crossProduct(normal1, normal2);
+
+        auto ur1 = getAdaptiveStepU(initialPoint.x(), initialPoint.y()) * derUV.first;
+        auto vr2 = getAdaptiveStepV(initialPoint.x(), initialPoint.y()) * derUV.second;
+        auto as1 = otherSpline->getAdaptiveStepU(initialPoint.z(), initialPoint.w()) * derAB.first;
+        auto bs2 = otherSpline->getAdaptiveStepV(initialPoint.z(), initialPoint.w()) * derAB.second;
+
+        auto app = getStepRadius(ur1, vr2, as1, bs2, t);
+        auto direction = getDirectionStepRadius(ur1 / derUV.first.length(), vr2 / derUV.second.length(), as1 / derAB.first.length(), bs2 / derAB.second.length(), t);
 
         auto u0 = initialPoint.x() +
                   app * QVector3D::dotProduct(t, derUV.first) / (t.length() * derUV.first.lengthSquared());
@@ -953,47 +1230,56 @@ QVector<QVector3D> NURBS::iterPoints(NURBS *otherSpline, const QVector4D &point)
         initialPoint.setZ(a0);
         initialPoint.setW(b0);
 
-        if (direction == 3) {
-            direction = getDirectionStepRadius(ur1 / derUV.first.length(), vr2 / derUV.second.length(), as1 / derAB.first.length(), bs2 / derAB.second.length(), t);
-        }
-        switch (direction)
+        try
         {
-            case 0:
+            switch (direction)
             {
-                auto tmp = QVector3D(initialPoint.y(), initialPoint.z(), initialPoint.w());
-                auto next = NewtonSolution(this, otherSpline, tmp, 0, initialPoint.x());
-                initialPoint.setY(next.x());
-                initialPoint.setZ(next.y());
-                initialPoint.setW(next.z());
-            }
+                case 0:
+                {
+                    auto tmp = QVector3D(initialPoint.y(), initialPoint.z(), initialPoint.w());
+                    auto next = NewtonSolution(this, otherSpline, tmp, 0, initialPoint.x());
+                    initialPoint.setY(next.x());
+                    initialPoint.setZ(next.y());
+                    initialPoint.setW(next.z());
+                    break;
+                }
 
-            case 1:
-            {
-                auto tmp = QVector3D(initialPoint.x(), initialPoint.z(), initialPoint.w());
-                auto next = NewtonSolution(this, otherSpline, tmp, 1, initialPoint.y());
-                initialPoint.setX(next.x());
-                initialPoint.setZ(next.y());
-                initialPoint.setW(next.z());
-            }
+                case 1:
+                {
+                    auto tmp = QVector3D(initialPoint.x(), initialPoint.z(), initialPoint.w());
+                    auto next = NewtonSolution(this, otherSpline, tmp, 1, initialPoint.y());
+                    initialPoint.setX(next.x());
+                    initialPoint.setZ(next.y());
+                    initialPoint.setW(next.z());
+                    break;
+                }
 
-            case 2:
-            {
-                auto tmp = QVector3D(initialPoint.w(), initialPoint.x(), initialPoint.y());
-                auto next = NewtonSolution(otherSpline, this, tmp, 0, initialPoint.z());
-                initialPoint.setX(next.y());
-                initialPoint.setY(next.z());
-                initialPoint.setW(next.x());
-            }
+                case 2:
+                {
+                    auto tmp = QVector3D(initialPoint.w(), initialPoint.x(), initialPoint.y());
+                    auto next = NewtonSolution(otherSpline, this, tmp, 0, initialPoint.z());
+                    initialPoint.setX(next.y());
+                    initialPoint.setY(next.z());
+                    initialPoint.setW(next.x());
+                    break;
+                }
 
-            case 3:
-            {
-                auto tmp = QVector3D(initialPoint.z(), initialPoint.x(), initialPoint.y());
-                auto next = NewtonSolution(otherSpline, this, tmp, 1, initialPoint.w());
-                initialPoint.setX(next.y());
-                initialPoint.setY(next.z());
-                initialPoint.setZ(next.x());
+                case 3:
+                {
+                    auto tmp = QVector3D(initialPoint.z(), initialPoint.x(), initialPoint.y());
+                    auto next = NewtonSolution(otherSpline, this, tmp, 1, initialPoint.w());
+                    initialPoint.setX(next.y());
+                    initialPoint.setY(next.z());
+                    initialPoint.setZ(next.x());
+                    break;
+                }
             }
+        } catch (NotBoundException& e)
+        {
+            qDebug() << e.what();
+            return result;
         }
+
 
         ++iterCount;
     }
@@ -1032,4 +1318,13 @@ NURBS::getDirectionStepRadius(const QVector3D &ur1, const QVector3D &vr2, const 
     }
 
     return maxi;
+}
+
+bool NURBS::isBound(NURBS *otherSpline, const QVector4D& point) {
+    bool inU = point.x() <= knotU.last() && point.x() >= knotU.first();
+    bool inV = point.y() <= knotV.last() && point.y() >= knotV.first();
+    bool inA = point.z() <= otherSpline->knotU.last() && point.z() >= otherSpline->knotU.first();
+    bool inB = point.w() <= otherSpline->knotV.last() && point.w() >= otherSpline->knotV.first();
+
+    return inU && inV && inA && inB;
 }

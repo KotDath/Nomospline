@@ -66,4 +66,6 @@ private:
     bool isNormal = false;
 
     float normalSize = 1.0f;
+
+    static QVector<QVector4D> filterPoints(const QVector<QVector4D>& points);
 };

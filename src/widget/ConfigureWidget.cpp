@@ -15,7 +15,7 @@ ConfigureWidget::ConfigureWidget(OpenGLWindow *parent)
     auto *checkboxNormals = new QCheckBox(tr("Normals"), this);
 
     normalLength = new QLineEdit(this);
-    normalLength->setFixedWidth(200);
+    normalLength->setFixedWidth(100);
 
     normalLength->setValidator( new QDoubleValidator(0, 100, 2, this) );
 

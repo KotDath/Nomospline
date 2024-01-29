@@ -34,21 +34,19 @@ MainWindow::MainWindow() : meshLoader(), splineLoader(), openglWidget(new OpenGL
     fileMenu->addAction(calculatePoints);
     connect(calculatePoints, &QAction::triggered, openglWidget, &OpenGLWindow::calculateIntersection);
 
-    auto *mainWidget = new QSplitter(Qt::Horizontal, this);;
+    auto *mainWidget = new QSplitter(Qt::Horizontal, this);
     setCentralWidget(mainWidget);
-
-
-    auto *layout = new QHBoxLayout;
-
-
-    layout->addWidget(openglWidget);
 
     auto *configureWidget = new ConfigureWidget(openglWidget);
 
-    layout->addWidget(configureWidget);
+    auto *layout_left = new QVBoxLayout;
+    auto *layout_right = new QVBoxLayout;
 
-    mainWidget->setLayout(layout);
-
+    openglWidget->setLayout(layout_left);
+    configureWidget->setLayout(layout_right);
+    mainWidget->addWidget(configureWidget);
+    mainWidget->addWidget(openglWidget);
+    mainWidget->setStretchFactor(1, 1);
 
 }
 

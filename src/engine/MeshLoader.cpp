@@ -21,6 +21,7 @@ Mesh* MeshLoader::load(const QString &path)
     auto* mesh = new Mesh();
     QVector<QVector3D> tmpVertices;
     QVector<QVector3D> tmpNormals;
+    QVector<int> normalsIndices;
 
     while (!in.atEnd())
     {
@@ -32,39 +33,44 @@ Mesh* MeshLoader::load(const QString &path)
 
 
         size_t linesCount;
-        if (line.startsWith("l"))
-        {
-            size_t lineLocal = 0;
-            GLushort previousValue = -1;
-            QStringList words = line.split(" ");
-            for (const QString &word: words)
-            {
-                auto value = word.toShort();
-                if (value != 0)
-                {
-                    if (lineLocal != 0)
-                    {
-                        mesh->indices.append(previousValue - 1);
-                        mesh->indices.append(value - 1);
-                    }
-                    previousValue = value;
-                    ++lineLocal;
-                }
-
-
-            }
-        }
+        //        if (line.startsWith("l"))
+        //        {
+        //            size_t lineLocal = 0;
+        //            GLushort previousValue = -1;
+        //            QStringList words = line.split(" ");
+        //            for (const QString &word: words)
+        //            {
+        //                auto value = word.toShort();
+        //                if (value != 0)
+        //                {
+        //                    if (lineLocal != 0)
+        //                    {
+        //                        mesh->indices.append(previousValue - 1);
+        //                        mesh->indices.append(value - 1);
+        //                    }
+        //                    previousValue = value;
+        //                    ++lineLocal;
+        //                }
+        //
+        //
+        //            }
+        //        }
 
         if (line.startsWith("f"))
         {
             QStringList words = line.split(" ");
             for (const QString &word: words)
             {
-                auto value = word.split("/")[0].toShort();
-                if (value != 0)
+                if(word == 'f')
+                    continue;
+                auto values = word.split("/");
+                auto value = values[0].toShort();
+                auto value2 = values[2].toShort();
+                if (value != 0 && value2 != 0)
                 {
 
-                    mesh->indices.append(value - 1);
+                    mesh->indices.append( mesh->indices.length());
+                    mesh->vertices.append(VertexData(tmpVertices[value-1], tmpNormals[value2-1]));
 
                 }
 
@@ -76,35 +82,34 @@ Mesh* MeshLoader::load(const QString &path)
         {
             QStringList words = line.split(" ");
             tmpVertices.append(QVector3D(
-                    words[1].toFloat(),
-                    words[2].toFloat(),
-                    words[3].toFloat()
-            ));
+                words[1].toFloat(),
+                words[2].toFloat(),
+                words[3].toFloat()
+                ));
         }
 
         if (line.startsWith("vn "))
         {
             QStringList words = line.split(" ");
             tmpNormals.append(QVector3D(
-                    words[1].toFloat(),
-                    words[2].toFloat(),
-                    words[3].toFloat()
-            ));
+                words[1].toFloat(),
+                words[2].toFloat(),
+                words[3].toFloat()
+                ));
         }
     }
 
-    for (int i = 0; i < tmpVertices.count(); ++i)
-    {
-        if (i < tmpNormals.count()) {
-            mesh->vertices.append(VertexData(tmpVertices[i], tmpNormals[i]));
-        } else {
-            mesh->vertices.append(VertexData(tmpVertices[i], QVector3D(0, 0, 0)));
-        }
-
-    }
+    //    for (int i = 0; i < tmpVertices.count(); ++i)
+    //    {
+    //        if (i < tmpNormals.count()) {
+    //            mesh->vertices.append(VertexData(tmpVertices[i], tmpNormals[i]));
+    //        } else {
+    //            mesh->vertices.append(VertexData(tmpVertices[i], QVector3D(0, 0, 0)));
+    //        }
+    //
+    //    }
 
     file.close();
 
     return mesh;
 }
-

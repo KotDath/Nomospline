@@ -41,7 +41,8 @@ struct NURBS
 
     QVector<QVector4D> getInitialPoints(NURBS *otherSpline);
 
-    QVector<QVector3D> iterPoints(NURBS *otherSpline, const QVector4D &initialPoint);
+    QVector<QVector3D> iterPointsPlus(NURBS *otherSpline, const QVector4D &initialPoint);
+    QVector<QVector3D> iterPointsMinus(NURBS *otherSpline, const QVector4D &initialPoint);
 
 private:
     int findSpan(GLsizei degree, const QVector<GLfloat> &knots, GLfloat param);
@@ -63,5 +64,7 @@ private:
 
     static QVector3D
     NewtonSolution(NURBS *spline1, NURBS *spline2, const QVector3D &zeroSolution, int constIndex, GLfloat constValue);
+
+    bool isBound(NURBS* otherSpline, const QVector4D& point);
 
 };

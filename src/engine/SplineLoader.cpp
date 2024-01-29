@@ -122,6 +122,9 @@ NURBS *SplineLoader::load(const QString &path)
         spline->controlPoints[i].resize(num_cp_v);
     }
     size_t num = 0;
+    qDebug() << tmp_indices;
+    qDebug() << tmp_points;
+    qDebug() << num_cp_u << num_cp_v;
     for (int j = 0; j < num_cp_v; ++j)
     {
         for (int i = 0; i < num_cp_u; ++i)

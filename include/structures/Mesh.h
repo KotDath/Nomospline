@@ -4,6 +4,8 @@
 #include <QVector3D>
 #include <QOpenGLBuffer>
 
+#include "timer.h"
+
 struct VertexData
 {
     VertexData(const QVector3D &vector3D, const QVector3D &vector3D1)

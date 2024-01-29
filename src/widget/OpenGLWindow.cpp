@@ -23,8 +23,6 @@ void OpenGLWindow::resizeGL(int w, int h)
 void OpenGLWindow::paintGL()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-
     meshProgram.link();
     meshProgram.bind();
 
@@ -165,10 +163,12 @@ void OpenGLWindow::paintGL()
             engine->draw(&pointsProgram, mesh, GL_POINTS);
         }*/
 
-        engine->draw(&pointsProgram, intersectionPoints, GL_POINTS);
+        if (intersectionPoints != nullptr)
+        {
+            engine->draw(&pointsProgram, intersectionPoints, GL_POINTS);
+        }
 
     }
-
 
     QOpenGLWidget::paintGL();
 }
@@ -177,7 +177,7 @@ void OpenGLWindow::initializeGL()
 {
 
     initializeOpenGLFunctions();
-
+    intersectionPoints = nullptr;
     camera.setPosition(0, 5, 10);
     camera.setViewPoint(0, 0, 0);
     camera.setUpVector(0, 1, 0);
@@ -232,6 +232,8 @@ void OpenGLWindow::initializeGL()
     initShaders();
     glEnable(GL_PROGRAM_POINT_SIZE);
     glEnable(GL_DEPTH_TEST);
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
     QOpenGLWidget::initializeGL();
@@ -415,6 +417,10 @@ void OpenGLWindow::calculateIntersection()
         for (int j = 0; j < i; ++j)
         {
             auto intersection = splines[j]->getInitialPoints(splines[i]);
+            qDebug() << "intersection: " << intersection;
+
+            intersection = filterPoints(intersection);
+            qDebug() << "intersection after filtering: " << intersection;
             for (auto k : intersection)
             {
                 qDebug() << "Difference: " << (splines[i]->getPoint(k.z(), k.w()) - splines[j]->getPoint(k.x(), k.y())).length();
@@ -422,14 +428,60 @@ void OpenGLWindow::calculateIntersection()
                 intersectionPoints->indices.append(intersectionPoints->indices.length());
             }
 
-           for (auto point : intersection) {
-                auto iterIntersection = splines[j]->iterPoints(splines[i], point);
+
+            for (auto point : intersection) {
+                auto startPoint = point;
+
+                if (QVector3D::crossProduct(splines[j]->getNormal(startPoint.x(), startPoint.y()),
+                                            splines[i]->getNormal(startPoint.z(), startPoint.w())).length() < 0.001) {
+                    qDebug() << "Found tangent intersection in point " << startPoint;
+                }
+                Timer timer("Plus side started", "Plus side finished");
+                auto iterIntersection = splines[j]->iterPointsPlus(splines[i], startPoint);
                 for (auto p : iterIntersection) {
                     intersectionPoints->vertices.append(p);
                     intersectionPoints->indices.append(intersectionPoints->indices.length());
                 }
+                timer.Stop();
+                timer = Timer("Minus side started", "Minus side finished");
+                startPoint = point;
+                iterIntersection = splines[j]->iterPointsMinus(splines[i], startPoint);
+                for (auto p : iterIntersection) {
+                    intersectionPoints->vertices.append(p);
+                    intersectionPoints->indices.append(intersectionPoints->indices.length());
+                }
+                timer.Stop();
             }
         }
     }
 
+}
+
+QVector<QVector4D> OpenGLWindow::filterPoints(const QVector<QVector4D>& points)
+{
+    const float epsilon = 0.001;
+    QVector<QVector4D> answer;
+    for (const auto& point1 : points)
+    {
+        if (answer.isEmpty())
+        {
+            answer.append(point1);
+        } else
+        {
+            float min = (point1 - answer[0]).length();
+            for (const auto& point2 : answer)
+            {
+                float tmp = (point1 - point2).length();
+                min = std::min(min, tmp);
+            }
+
+            if (min > epsilon)
+            {
+                answer.append(point1);
+            }
+        }
+
+    }
+
+    return answer;
 }

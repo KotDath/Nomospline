@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.22)
 project(Nomospline)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -6,7 +6,6 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-set(CMAKE_PREFIX_PATH "C:/Qt/6.3.1/msvc2019_64")
 
 find_package(Qt6 COMPONENTS
         Core
@@ -21,8 +20,9 @@ include_directories(include)
 SET(ENGINE_SRC src/engine/GeometryEngine.cpp src/engine/MeshLoader.cpp src/engine/Camera.cpp src/engine/SplineLoader.cpp)
 SET(WIDGET_SRC src/widget/OpenGLWindow.cpp src/widget/MainWindow.cpp src/widget/ConfigureWidget.cpp)
 SET(STRUCTURES_SRC src/structures/NURBS.cpp)
+set(OTHER_SRC src/timer.cpp)
 
-add_executable(Nomospline main.cpp ${ENGINE_SRC} ${WIDGET_SRC} ${STRUCTURES_SRC} shaders.qrc images.qrc)
+add_executable(Nomospline main.cpp ${ENGINE_SRC} ${WIDGET_SRC} ${STRUCTURES_SRC} ${OTHER_SRC} shaders.qrc images.qrc)
 target_link_libraries(Nomospline
         Qt::Core
         Qt::Gui
