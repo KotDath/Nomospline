@@ -12,7 +12,7 @@ struct NURBS
 
     Mesh *evaluate();
 
-    QVector<QVector3D> intersectionLine(NURBS *otherSpline);
+
 
     void init();
 
@@ -28,6 +28,8 @@ struct NURBS
     std::pair<QVector3D, QVector3D> getDerivatives(GLfloat u, GLfloat v);
 
     std::pair<QVector3D, QVector3D> getDerivatives2(GLfloat u, GLfloat v);
+
+    QVector3D getDerivativesMixed(GLfloat u, GLfloat v);
 
     GLfloat getAdaptiveStepU(GLfloat u, GLfloat v);
 
@@ -60,10 +62,16 @@ private:
     QVector<QVector4D> curveToSurfaceIntersectionV(GLfloat v, NURBS *otherSpline);
 
     static QMatrix3x3
-    getJacobian(NURBS *spline1, NURBS *spline2, int constIndex, GLfloat constValue, const QVector3D &current);
+    getJacobian3D(NURBS *spline1, NURBS *spline2, int constIndex, GLfloat constValue, const QVector3D &current);
+
+    static QMatrix4x4
+    getJacobian4D(NURBS *spline1, NURBS *spline2, const QVector4D &current);
 
     static QVector3D
-    NewtonSolution(NURBS *spline1, NURBS *spline2, const QVector3D &zeroSolution, int constIndex, GLfloat constValue);
+    NewtonSolution3D(NURBS *spline1, NURBS *spline2, const QVector3D &zeroSolution, int constIndex, GLfloat constValue);
+
+    static QVector4D
+    NewtonSolution4D(NURBS *spline1, NURBS *spline2, const QVector4D &zeroSolution);
 
     bool isBound(NURBS* otherSpline, const QVector4D& point);
 

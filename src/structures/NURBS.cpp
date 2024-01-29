@@ -3,10 +3,11 @@
 //
 #include "structures/NURBS.h"
 #include <QSet>
+#include <QMatrix4x4>
 
-float deltaAlpha = M_PI / 10;
-float stepMin = 0.05;
-float stepMax = 0.5;
+float deltaAlpha = M_PI / 15;
+float stepMin = 0.01;
+float stepMax = 0.1;
 
 class NotBoundException : public std::exception {
 public:
@@ -756,10 +757,10 @@ QVector<QVector4D> NURBS::curveToSurfaceIntersectionU(GLfloat u, NURBS *otherSpl
                     // дальше идёт решение системы численным методом(например Ньютона)
                     try
                     {
-                        auto solution = NewtonSolution(this, otherSpline, zeroSolution, 0, u);
+                        auto solution = NewtonSolution3D(this, otherSpline, zeroSolution, 0, u);
                         QVector4D insertSolution{u, solution.x(), solution.y(), solution.z()};
-
-                        if (isBound(otherSpline, insertSolution)) {
+                        auto delta = (getPoint(u, solution.x()) - otherSpline->getPoint(solution.y(), solution.z())).length();
+                        if (isBound(otherSpline, insertSolution) && delta < 0.001) {
                             intersections.append(insertSolution);
                         }
                     }catch (NotBoundException& e)
@@ -852,9 +853,10 @@ QVector<QVector4D> NURBS::curveToSurfaceIntersectionV(GLfloat v, NURBS *otherSpl
 
                     try
                     {
-                        auto solution = NewtonSolution(this, otherSpline, zeroSolution, 1, v);
+                        auto solution = NewtonSolution3D(this, otherSpline, zeroSolution, 1, v);
                         QVector4D insertSolution{solution.x(), v, solution.y(), solution.z()};
-                        if (isBound(otherSpline, insertSolution))
+                        auto delta = (getPoint(solution.x(), v) - otherSpline->getPoint(solution.y(), solution.z())).length();
+                        if (isBound(otherSpline, insertSolution) && delta < 0.001)
                         {
                             intersections.append(insertSolution);
                         }
@@ -883,7 +885,7 @@ QVector<QVector4D> NURBS::curveToSurfaceIntersectionV(GLfloat v, NURBS *otherSpl
 }
 
 QMatrix3x3
-NURBS::getJacobian(NURBS *spline1, NURBS *spline2, int constIndex, GLfloat constValue, const QVector3D &current)
+NURBS::getJacobian3D(NURBS *spline1, NURBS *spline2, int constIndex, GLfloat constValue, const QVector3D &current)
 {
 
     QMatrix3x3 answer;
@@ -942,7 +944,7 @@ float determinant(QMatrix3x3 mat)
     return det;
 }
 
-QMatrix3x3 invertMatrix(const QMatrix3x3 &matrix)
+QMatrix3x3 invertMatrix3D(const QMatrix3x3 &matrix)
 {
     float det = determinant(matrix);
     if (std::abs(det) < 0.0001) // Check for singularity
@@ -967,16 +969,25 @@ QMatrix3x3 invertMatrix(const QMatrix3x3 &matrix)
     return cofactors * (1 / det);
 }
 
+QMatrix4x4 invertMatrix4D(const QMatrix4x4 &matrix)
+{
+    return matrix.inverted();
+}
+
 QVector3D
-NURBS::NewtonSolution(NURBS *spline1, NURBS *spline2, const QVector3D &zeroSolution, int constIndex, GLfloat constValue)
+NURBS::NewtonSolution3D(NURBS *spline1, NURBS *spline2, const QVector3D &zeroSolution, int constIndex, GLfloat constValue)
 {
 
+    float eps = 0.00001;
 
     auto previous = zeroSolution;
     auto current = zeroSolution;
+
+    auto iterCount = 0;
+
     do
     {
-        auto jacobian = invertMatrix(getJacobian(spline1, spline2, constIndex, constValue, current));
+        auto jacobian = invertMatrix3D(getJacobian3D(spline1, spline2, constIndex, constValue, current));
         QVector3D value;
         if (constIndex == 0)
         {
@@ -998,9 +1009,36 @@ NURBS::NewtonSolution(NURBS *spline1, NURBS *spline2, const QVector3D &zeroSolut
         prev(2, 0) = previous.z();
         auto tmp = prev - jacobian * vec;
         current = {tmp(0, 0), tmp(1, 0), tmp(2, 0)};
-        qDebug() << "Newton accuracy: " << (current - previous).length() << ' ' << current;
-    } while ((current - previous).length() > 0.001);
+        qDebug() << "Newton accuracy: " << (current - previous).length() << ' ' << current << " iteration: " << iterCount;
+        ++iterCount;
+    } while ((current - previous).length() > eps && iterCount <= 50);
 
+    if ((current - previous).length() > eps)
+    {
+        QVector4D solution;
+        if (constValue == 0)
+        {
+            solution.setX(constValue);
+            solution.setY(current.x());
+            solution.setZ(current.y());
+            solution.setW(current.z());
+
+            auto answer = NewtonSolution4D(spline1, spline2, solution);
+            QVector3D tmp{answer.y(), answer.z(), answer.w()};
+            return tmp;
+        }
+        else
+        {
+            solution.setX(current.x());
+            solution.setY(constValue);
+            solution.setZ(current.y());
+            solution.setW(current.z());
+
+            auto answer = NewtonSolution4D(spline1, spline2, solution);
+            QVector3D tmp{answer.x(), answer.z(), answer.w()};
+            return tmp;
+        }
+    }
     return current;
 }
 
@@ -1062,12 +1100,14 @@ QVector<QVector3D> NURBS::iterPointsPlus(NURBS *otherSpline, const QVector4D &po
     int iterCount = 0;
 
 
-    while (isBound(otherSpline, initialPoint))
+    while (isBound(otherSpline, initialPoint) && iterCount < 1000)
     {
-        qDebug() << "iteration: " << iterCount << " with point " << initialPoint;
+
         auto poi = getPoint(initialPoint.x(), initialPoint.y());
-        if (QVector3D::crossProduct(getNormal(initialPoint.x(), initialPoint.y()),
-                                    otherSpline->getNormal(initialPoint.z(), initialPoint.w())).length() < 0.001) {
+        auto cross = QVector3D::crossProduct(getNormal(initialPoint.x(), initialPoint.y()),
+                                             otherSpline->getNormal(initialPoint.z(), initialPoint.w())).length();
+        qDebug() << "iteration: " << iterCount << " with point " << initialPoint << " and cross: " << cross << " value: " << poi;
+        if ( cross < 0.01) {
             qDebug() << "Found tangent intersection in point " << initialPoint;
             return result;
         }
@@ -1122,7 +1162,7 @@ QVector<QVector3D> NURBS::iterPointsPlus(NURBS *otherSpline, const QVector4D &po
                 case 0:
                 {
                     auto tmp = QVector3D(initialPoint.y(), initialPoint.z(), initialPoint.w());
-                    auto next = NewtonSolution(this, otherSpline, tmp, 0, initialPoint.x());
+                    auto next = NewtonSolution3D(this, otherSpline, tmp, 0, initialPoint.x());
                     initialPoint.setY(next.x());
                     initialPoint.setZ(next.y());
                     initialPoint.setW(next.z());
@@ -1132,7 +1172,7 @@ QVector<QVector3D> NURBS::iterPointsPlus(NURBS *otherSpline, const QVector4D &po
                 case 1:
                 {
                     auto tmp = QVector3D(initialPoint.x(), initialPoint.z(), initialPoint.w());
-                    auto next = NewtonSolution(this, otherSpline, tmp, 1, initialPoint.y());
+                    auto next = NewtonSolution3D(this, otherSpline, tmp, 1, initialPoint.y());
                     initialPoint.setX(next.x());
                     initialPoint.setZ(next.y());
                     initialPoint.setW(next.z());
@@ -1142,7 +1182,7 @@ QVector<QVector3D> NURBS::iterPointsPlus(NURBS *otherSpline, const QVector4D &po
                 case 2:
                 {
                     auto tmp = QVector3D(initialPoint.w(), initialPoint.x(), initialPoint.y());
-                    auto next = NewtonSolution(otherSpline, this, tmp, 0, initialPoint.z());
+                    auto next = NewtonSolution3D(otherSpline, this, tmp, 0, initialPoint.z());
                     initialPoint.setX(next.y());
                     initialPoint.setY(next.z());
                     initialPoint.setW(next.x());
@@ -1152,7 +1192,7 @@ QVector<QVector3D> NURBS::iterPointsPlus(NURBS *otherSpline, const QVector4D &po
                 case 3:
                 {
                     auto tmp = QVector3D(initialPoint.z(), initialPoint.x(), initialPoint.y());
-                    auto next = NewtonSolution(otherSpline, this, tmp, 1, initialPoint.w());
+                    auto next = NewtonSolution3D(otherSpline, this, tmp, 1, initialPoint.w());
                     initialPoint.setX(next.y());
                     initialPoint.setY(next.z());
                     initialPoint.setZ(next.x());
@@ -1181,12 +1221,13 @@ QVector<QVector3D> NURBS::iterPointsMinus(NURBS *otherSpline, const QVector4D &p
     int iterCount = 0;
 
 
-    while (isBound(otherSpline, initialPoint))
+    while (isBound(otherSpline, initialPoint) && iterCount < 1000)
     {
-        qDebug() << "iteration: " << iterCount << " with point " << initialPoint;
         auto poi = getPoint(initialPoint.x(), initialPoint.y());
-        if (QVector3D::crossProduct(getNormal(initialPoint.x(), initialPoint.y()),
-                                    otherSpline->getNormal(initialPoint.z(), initialPoint.w())).length() < 0.001) {
+        auto cross = QVector3D::crossProduct(getNormal(initialPoint.x(), initialPoint.y()),
+                                             otherSpline->getNormal(initialPoint.z(), initialPoint.w())).length();
+        qDebug() << "iteration: " << iterCount << " with point " << initialPoint << " and cross: " << cross << " value: " << poi;;
+        if (cross < 0.001) {
             qDebug() << "Found tangent intersection in point " << initialPoint;
             return result;
         }
@@ -1237,7 +1278,7 @@ QVector<QVector3D> NURBS::iterPointsMinus(NURBS *otherSpline, const QVector4D &p
                 case 0:
                 {
                     auto tmp = QVector3D(initialPoint.y(), initialPoint.z(), initialPoint.w());
-                    auto next = NewtonSolution(this, otherSpline, tmp, 0, initialPoint.x());
+                    auto next = NewtonSolution3D(this, otherSpline, tmp, 0, initialPoint.x());
                     initialPoint.setY(next.x());
                     initialPoint.setZ(next.y());
                     initialPoint.setW(next.z());
@@ -1247,7 +1288,7 @@ QVector<QVector3D> NURBS::iterPointsMinus(NURBS *otherSpline, const QVector4D &p
                 case 1:
                 {
                     auto tmp = QVector3D(initialPoint.x(), initialPoint.z(), initialPoint.w());
-                    auto next = NewtonSolution(this, otherSpline, tmp, 1, initialPoint.y());
+                    auto next = NewtonSolution3D(this, otherSpline, tmp, 1, initialPoint.y());
                     initialPoint.setX(next.x());
                     initialPoint.setZ(next.y());
                     initialPoint.setW(next.z());
@@ -1257,7 +1298,7 @@ QVector<QVector3D> NURBS::iterPointsMinus(NURBS *otherSpline, const QVector4D &p
                 case 2:
                 {
                     auto tmp = QVector3D(initialPoint.w(), initialPoint.x(), initialPoint.y());
-                    auto next = NewtonSolution(otherSpline, this, tmp, 0, initialPoint.z());
+                    auto next = NewtonSolution3D(otherSpline, this, tmp, 0, initialPoint.z());
                     initialPoint.setX(next.y());
                     initialPoint.setY(next.z());
                     initialPoint.setW(next.x());
@@ -1267,7 +1308,7 @@ QVector<QVector3D> NURBS::iterPointsMinus(NURBS *otherSpline, const QVector4D &p
                 case 3:
                 {
                     auto tmp = QVector3D(initialPoint.z(), initialPoint.x(), initialPoint.y());
-                    auto next = NewtonSolution(otherSpline, this, tmp, 1, initialPoint.w());
+                    auto next = NewtonSolution3D(otherSpline, this, tmp, 1, initialPoint.w());
                     initialPoint.setX(next.y());
                     initialPoint.setY(next.z());
                     initialPoint.setZ(next.x());
@@ -1327,4 +1368,81 @@ bool NURBS::isBound(NURBS *otherSpline, const QVector4D& point) {
     bool inB = point.w() <= otherSpline->knotV.last() && point.w() >= otherSpline->knotV.first();
 
     return inU && inV && inA && inB;
+}
+
+QVector3D NURBS::getDerivativesMixed(GLfloat u, GLfloat v) {
+    GLfloat du = 0.01;
+    auto der1 = getDerivatives(u + du, v);
+    auto der2 = getDerivatives(u - du, v);
+    return (der1.second - der2.second) / (2 * du);
+
+}
+
+QVector4D NURBS::NewtonSolution4D(NURBS *spline1, NURBS *spline2, const QVector4D &zeroSolution) {
+    auto previous = zeroSolution;
+    auto current = zeroSolution;
+    do
+    {
+        auto jacobian = invertMatrix4D(getJacobian4D(spline1, spline2, current));
+        QVector4D value;
+        auto r = spline1->getPoint(zeroSolution.x(), zeroSolution.y());
+        auto s = spline2->getPoint(zeroSolution.z(), zeroSolution.w());
+        auto dr = spline1->getDerivatives(zeroSolution.x(), zeroSolution.y());
+        auto ds = spline1->getDerivatives(zeroSolution.z(), zeroSolution.w());
+
+        value.setX(QVector3D::dotProduct(r - s, dr.first));
+        value.setY(QVector3D::dotProduct(r - s, dr.second));
+        value.setZ(QVector3D::dotProduct(s - r, ds.first));
+        value.setW(QVector3D::dotProduct(s - r, ds.second));
+
+        previous = current;
+        QGenericMatrix<1, 4, float> vec;
+
+        current = previous - value * jacobian;
+        qDebug() << "Newton accuracy: " << (current - previous).length() << ' ' << current;
+    } while ((current - previous).length() > 0.00001);
+
+    return current;
+}
+
+QMatrix4x4 NURBS::getJacobian4D(NURBS *spline1, NURBS *spline2, const QVector4D &current) {
+    QMatrix4x4 answer;
+
+    if (!spline1->isBound(spline2, current))
+    {
+        throw NotBoundException();
+    }
+    auto r = spline1->getPoint(current.x(), current.y());
+    auto s = spline1->getPoint(current.z(), current.w());
+
+    auto dr = spline1->getDerivatives(current.x(), current.y());
+    auto ds = spline2->getDerivatives(current.z(), current.w());
+
+    auto d2r = spline1->getDerivatives2(current.x(), current.y());
+    auto d2s = spline2->getDerivatives2(current.z(), current.w());
+
+    auto d2r_mixed = spline1->getDerivativesMixed(current.x(), current.y());
+    auto d2s_mixed = spline2->getDerivativesMixed(current.z(), current.w());
+
+    answer(0, 0) = QVector3D::dotProduct(dr.first, dr.first) + QVector3D::dotProduct(r - s, d2r.first);
+    answer(1, 0) = QVector3D::dotProduct(dr.first, dr.second) + QVector3D::dotProduct(r - s, d2r_mixed);
+    answer(2, 0) = -QVector3D::dotProduct(ds.first, dr.first);
+    answer(3, 0) = -QVector3D::dotProduct(ds.second, dr.first);
+
+    answer(0, 1) = QVector3D::dotProduct(dr.first, dr.second) + QVector3D::dotProduct(r - s, d2r_mixed);
+    answer(1, 1) = QVector3D::dotProduct(dr.second, dr.second) + QVector3D::dotProduct(r - s, d2r.second);
+    answer(2, 1) = -QVector3D::dotProduct(ds.first, dr.second);
+    answer(3, 1) = -QVector3D::dotProduct(ds.second, dr.second);
+
+    answer(0, 2) = -QVector3D::dotProduct(ds.first, dr.first);
+    answer(1, 2) = -QVector3D::dotProduct(ds.first, dr.second);
+    answer(2, 2) = QVector3D::dotProduct(ds.first, ds.first) + QVector3D::dotProduct(s - r, d2s.first);
+    answer(3, 2) = QVector3D::dotProduct(ds.first, ds.second) + QVector3D::dotProduct(s - r, d2s_mixed);
+
+    answer(0, 3) = -QVector3D::dotProduct(ds.second, dr.first);
+    answer(1, 3) = -QVector3D::dotProduct(ds.second, dr.second);
+    answer(2, 3) = QVector3D::dotProduct(ds.first, ds.second) + QVector3D::dotProduct(s - r, d2s_mixed);
+    answer(3, 3) = QVector3D::dotProduct(ds.second, ds.second) + QVector3D::dotProduct(s - r, d2s.second);
+    return answer;
+
 }
