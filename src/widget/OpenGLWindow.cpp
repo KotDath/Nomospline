@@ -333,7 +333,7 @@ void OpenGLWindow::evaluateSplines()
 
     for (const auto &spline: splines)
     {
-        splineMeshes.append(spline->evaluate());
+        splineMeshes.append(SplineUtils::evaluate(spline));
     }
 
     update();
@@ -416,15 +416,16 @@ void OpenGLWindow::calculateIntersection()
     {
         for (int j = 0; j < i; ++j)
         {
-            auto intersection = splines[j]->getInitialPoints(splines[i]);
+            auto intersection = SplineUtils::getInitialPoints(splines[j], splines[i]);
             qDebug() << "intersection: " << intersection;
 
             intersection = filterPoints(intersection);
             qDebug() << "intersection after filtering: " << intersection;
             for (auto k : intersection)
             {
-                qDebug() << "Difference: " << (splines[i]->getPoint(k.z(), k.w()) - splines[j]->getPoint(k.x(), k.y())).length();
-                intersectionPoints->vertices.append(splines[i]->getPoint(k.z(), k.w()));
+                qDebug() << "Difference: " << (SplineUtils::getPoint(splines[i], k.z(), k.w()) -
+                SplineUtils::getPoint(splines[j], k.x(), k.y())).length();
+                intersectionPoints->vertices.append(SplineUtils::getPoint(splines[i], k.z(), k.w()));
                 intersectionPoints->indices.append(intersectionPoints->indices.length());
             }
 
@@ -432,12 +433,12 @@ void OpenGLWindow::calculateIntersection()
             for (auto point : intersection) {
                 auto startPoint = point;
 
-                if (QVector3D::crossProduct(splines[j]->getNormal(startPoint.x(), startPoint.y()),
-                                            splines[i]->getNormal(startPoint.z(), startPoint.w())).length() < 0.001) {
+                if (QVector3D::crossProduct(SplineUtils::getNormal(splines[j], startPoint.x(), startPoint.y()),
+                                            SplineUtils::getNormal(splines[i], startPoint.z(), startPoint.w())).length() < 0.001) {
                     qDebug() << "Found tangent intersection in point " << startPoint;
                 }
                 Timer timer("Plus side started", "Plus side finished");
-                auto iterIntersection = splines[j]->iterPointsPlus(splines[i], startPoint);
+                auto iterIntersection = SplineUtils::iterPointsPlus(splines[j], splines[i], startPoint);
                 for (auto p : iterIntersection) {
                     intersectionPoints->vertices.append(p);
                     intersectionPoints->indices.append(intersectionPoints->indices.length());
@@ -445,7 +446,7 @@ void OpenGLWindow::calculateIntersection()
                 timer.Stop();
                 timer = Timer("Minus side started", "Minus side finished");
                 startPoint = point;
-                iterIntersection = splines[j]->iterPointsMinus(splines[i], startPoint);
+                iterIntersection = SplineUtils::iterPointsMinus(splines[j], splines[i], startPoint);
                 for (auto p : iterIntersection) {
                     intersectionPoints->vertices.append(p);
                     intersectionPoints->indices.append(intersectionPoints->indices.length());

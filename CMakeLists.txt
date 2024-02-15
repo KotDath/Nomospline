@@ -6,6 +6,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
+list(APPEND CMAKE_PREFIX_PATH "~/Qt/6.6.1/gcc_64")
 
 find_package(Qt6 COMPONENTS
         Core
@@ -19,7 +20,9 @@ include_directories(include)
 
 SET(ENGINE_SRC src/engine/GeometryEngine.cpp src/engine/MeshLoader.cpp src/engine/Camera.cpp src/engine/SplineLoader.cpp)
 SET(WIDGET_SRC src/widget/OpenGLWindow.cpp src/widget/MainWindow.cpp src/widget/ConfigureWidget.cpp)
-SET(STRUCTURES_SRC src/structures/NURBS.cpp)
+SET(STRUCTURES_SRC
+        include/structures/SplineUtils.cpp
+        include/structures/SplineUtils.h)
 set(OTHER_SRC src/timer.cpp)
 
 add_executable(Nomospline main.cpp ${ENGINE_SRC} ${WIDGET_SRC} ${STRUCTURES_SRC} ${OTHER_SRC} shaders.qrc images.qrc)

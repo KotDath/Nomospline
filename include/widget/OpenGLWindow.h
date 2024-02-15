@@ -6,6 +6,7 @@
 #include "engine/GeometryEngine.h"
 #include "engine/Camera.h"
 #include "structures/NURBS.h"
+#include "structures/SplineUtils.h"
 
 
 class OpenGLWindow : public QOpenGLWidget, protected QOpenGLFunctions_4_5_Core

@@ -11,7 +11,7 @@ varying vec4 fragColor;
 
 void main()
 {
-    fragColor = vec4(1, 0, 0.7, 1);
-    gl_PointSize = 2;
+    fragColor = vec4(1.0, 0.0, 0.7, 1.0);
+    gl_PointSize = 2.0;
     gl_Position = mvp_matrix * vec4(a_Position, 1.0);
 }
