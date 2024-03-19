@@ -6,7 +6,6 @@
 #include <QUrl>
 
 #include "widget/scene.h"
-#include "widget/MainWindow.h"
 #include "widget/WindowUtils.h"
 
 void myMessageHandler(QtMsgType type, const QMessageLogContext &, const QString & msg)
@@ -44,17 +43,8 @@ int main(int argc, char *argv[])
     QFont fon("Comic Sans", 16);
     a.setFont(fon);
 
-    bool is_qml = false;
-
     registerTypes();
     QQmlApplicationEngine engine("../qml/main.qml");
-
-    /*
-    MainWindow window;
-    window.resize(1080,720);
-    window.show();
-
-     */
 
     return QApplication::exec();
 }

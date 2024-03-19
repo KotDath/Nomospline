@@ -20,25 +20,25 @@ find_package(Qt6 COMPONENTS
 
 include_directories(include)
 
-SET(ENGINE_SRC src/engine/GeometryEngine.cpp src/engine/MeshLoader.cpp src/engine/Camera.cpp src/engine/SplineLoader.cpp)
-SET(WIDGET_SRC src/widget/OpenGLWindow.cpp src/widget/MainWindow.cpp src/widget/ConfigureWidget.cpp
+SET(ENGINE_SRC src/engine/MeshLoader.cpp src/engine/Camera.cpp src/engine/SplineLoader.cpp)
+SET(WIDGET_SRC
         include/widget/scene.h
         src/widget/scene.cpp
+        include/widget/WindowUtils.h
+        src/widget/WindowUtils.cpp
 
 )
 
 SET(STRUCTURES_SRC
         src/structures/SplineUtils.cpp)
 
-set(OTHER_SRC src/timer.cpp
-        include/render_object/MeshRenderer.h
+set(RENDER_SRC
         include/render_object/RenderObject.h
         src/render_object/RenderObject.cpp
+        include/render_object/MeshRenderer.h
         src/render_object/MeshRenderer.cpp
         include/render_object/BackgroundRenderer.h
         src/render_object/BackgroundRenderer.cpp
-        include/widget/WindowUtils.h
-        src/widget/WindowUtils.cpp
         include/engine/SceneData.h
         src/engine/SceneData.cpp
         include/render_object/GizmosRenderer.h
@@ -48,9 +48,12 @@ set(OTHER_SRC src/timer.cpp
         include/render_object/PointRenderer.h
         src/render_object/PointRenderer.cpp
 )
+set(OTHER_SRC
+        src/timer.cpp
+)
 
 
-add_executable(Nomospline main.cpp ${ENGINE_SRC} ${WIDGET_SRC} ${STRUCTURES_SRC} ${OTHER_SRC} shaders.qrc images.qrc)
+add_executable(Nomospline main.cpp ${ENGINE_SRC} ${WIDGET_SRC} ${STRUCTURES_SRC} ${OTHER_SRC} ${RENDER_SRC} shaders.qrc images.qrc)
 
 target_link_libraries(Nomospline
         Qt::Core
