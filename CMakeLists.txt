@@ -14,25 +14,55 @@ find_package(Qt6 COMPONENTS
         Widgets
         OpenGL
         OpenGLWidgets
+        Qml
+        Quick
         REQUIRED)
 
 include_directories(include)
 
 SET(ENGINE_SRC src/engine/GeometryEngine.cpp src/engine/MeshLoader.cpp src/engine/Camera.cpp src/engine/SplineLoader.cpp)
-SET(WIDGET_SRC src/widget/OpenGLWindow.cpp src/widget/MainWindow.cpp src/widget/ConfigureWidget.cpp)
+SET(WIDGET_SRC src/widget/OpenGLWindow.cpp src/widget/MainWindow.cpp src/widget/ConfigureWidget.cpp
+        include/widget/scene.h
+        src/widget/scene.cpp
+
+)
+
 SET(STRUCTURES_SRC
-        include/structures/SplineUtils.cpp
-        include/structures/SplineUtils.h)
-set(OTHER_SRC src/timer.cpp)
+        src/structures/SplineUtils.cpp)
+
+set(OTHER_SRC src/timer.cpp
+        include/render_object/MeshRenderer.h
+        include/render_object/RenderObject.h
+        src/render_object/RenderObject.cpp
+        src/render_object/MeshRenderer.cpp
+        include/render_object/BackgroundRenderer.h
+        src/render_object/BackgroundRenderer.cpp
+        include/widget/WindowUtils.h
+        src/widget/WindowUtils.cpp
+        include/engine/SceneData.h
+        src/engine/SceneData.cpp
+        include/render_object/GizmosRenderer.h
+        src/render_object/GizmosRenderer.cpp
+        include/render_object/SplineRenderer.h
+        src/render_object/SplineRenderer.cpp
+        include/render_object/PointRenderer.h
+        src/render_object/PointRenderer.cpp
+)
+
 
 add_executable(Nomospline main.cpp ${ENGINE_SRC} ${WIDGET_SRC} ${STRUCTURES_SRC} ${OTHER_SRC} shaders.qrc images.qrc)
+
 target_link_libraries(Nomospline
         Qt::Core
         Qt::Gui
         Qt::Widgets
         Qt::OpenGL
         Qt::OpenGLWidgets
+        Qt::Qml
+        Qt::Quick
         )
+
+
 
 if (WIN32 AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
     set(DEBUG_SUFFIX)

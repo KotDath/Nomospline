@@ -24,9 +24,9 @@ protected:
 
     void paintGL() override;
 
-    void mouseMoveEvent(QMouseEvent *event);
-    void mousePressEvent(QMouseEvent *event);
-    void wheelEvent(QWheelEvent *event);
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
 
 public:
     void addGeometry(Mesh *newMesh);

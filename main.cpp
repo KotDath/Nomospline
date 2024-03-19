@@ -2,8 +2,12 @@
 #include <QFile>
 #include <QTextStream>
 #include <iostream>
+#include <QtQml>
+#include <QUrl>
 
+#include "widget/scene.h"
 #include "widget/MainWindow.h"
+#include "widget/WindowUtils.h"
 
 void myMessageHandler(QtMsgType type, const QMessageLogContext &, const QString & msg)
 {
@@ -29,12 +33,28 @@ void myMessageHandler(QtMsgType type, const QMessageLogContext &, const QString 
     outFile.close();
 }
 
+void registerTypes() {
+    qmlRegisterType<Scene>("Scene",1,0,"Scene");
+    qmlRegisterType<WindowUtils>("WindowUtils",1,0,"WindowUtils");
+}
+
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
-    //qInstallMessageHandler(myMessageHandler);
+    QFont fon("Comic Sans", 16);
+    a.setFont(fon);
+
+    bool is_qml = false;
+
+    registerTypes();
+    QQmlApplicationEngine engine("../qml/main.qml");
+
+    /*
     MainWindow window;
     window.resize(1080,720);
     window.show();
+
+     */
+
     return QApplication::exec();
 }

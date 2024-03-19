@@ -170,6 +170,7 @@ void OpenGLWindow::paintGL()
 
     }
 
+    camera.interp(0.85, this);
     QOpenGLWidget::paintGL();
 }
 

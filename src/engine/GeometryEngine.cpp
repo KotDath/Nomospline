@@ -61,6 +61,7 @@ void GeometryEngine::draw(QOpenGLShaderProgram *program, const Mesh *mesh, GLenu
             int normalLocation = program->attributeLocation("a_Norm");
             program->enableAttributeArray(normalLocation);
             program->setAttributeBuffer(normalLocation, GL_FLOAT, offset, 3, sizeof(VertexData));
+
             glPolygonMode(GL_FRONT, GL_FILL);
             glDrawElements(drawMode, mesh->indices.count(), GL_UNSIGNED_SHORT, nullptr);
         }
@@ -72,6 +73,7 @@ void GeometryEngine::draw(QOpenGLShaderProgram *program, const Mesh *mesh, GLenu
 
     }
 
+    program->release();
 }
 
 void GeometryEngine::init()

@@ -3,7 +3,7 @@
 //
 
 #include <QMatrix4x4>
-#include "SplineUtils.h"
+#include "structures/SplineUtils.h"
 
 float deltaAlpha = M_PI / 15;
 float stepMin = 0.01;

@@ -6,5 +6,11 @@
         <file>shaders/lines/fshader.glsl</file>
         <file>shaders/points/vshader.glsl</file>
         <file>shaders/points/fshader.glsl</file>
+        <file>shaders/background/vshader.glsl</file>
+        <file>shaders/background/fshader.glsl</file>
+        <file>shaders/simple_mesh/vshader.glsl</file>
+        <file>shaders/simple_mesh/fshader.glsl</file>
+        <file>shaders/gizmos/vshader.glsl</file>
+        <file>shaders/gizmos/fshader.glsl</file>
     </qresource>
 </RCC>
