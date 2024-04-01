@@ -13,7 +13,7 @@ void MeshRenderer::setMesh(const Mesh *m) {
     arrayBuf.allocate(mesh->vertices.data(), mesh->vertices.count() * sizeof(VertexData));
 
     indexBuf.bind();
-    indexBuf.allocate(mesh->indices.data(), mesh->indices.count() * sizeof(GLushort));
+    indexBuf.allocate(mesh->indices.data(), mesh->indices.count() * sizeof(GLuint));
 
 }
 
@@ -108,13 +108,13 @@ void MeshRenderer::paint() {
 
     if (drawMode == GL_POINTS) {
         glPolygonMode(GL_FRONT, GL_POINT);
-        glDrawElements(drawMode, mesh->indices.count(), GL_UNSIGNED_SHORT, nullptr);
+        glDrawElements(drawMode, mesh->indices.count(), GL_UNSIGNED_INT, nullptr);
         glPolygonMode(GL_FRONT, GL_FILL);
     }
 
     if (drawMode == GL_LINES) {
         glPolygonMode(GL_FRONT, GL_LINE);
-        glDrawElements(drawMode, mesh->indices.count(), GL_UNSIGNED_SHORT, nullptr);
+        glDrawElements(drawMode, mesh->indices.count(), GL_UNSIGNED_INT, nullptr);
         glPolygonMode(GL_FRONT, GL_FILL);
     }
 
@@ -126,11 +126,11 @@ void MeshRenderer::paint() {
 
 
         glPolygonMode(GL_FRONT, GL_FILL);
-        glDrawElements(drawMode, mesh->indices.count(), GL_UNSIGNED_SHORT, nullptr);
+        glDrawElements(drawMode, mesh->indices.count(), GL_UNSIGNED_INT, nullptr);
     }
 
     if (drawMode == GL_NORMALS) {
-        glDrawElements(GL_LINES, mesh->indices.count(), GL_UNSIGNED_SHORT, nullptr);
+        glDrawElements(GL_LINES, mesh->indices.count(), GL_UNSIGNED_INT, nullptr);
     }
 
     arrayBuf.release();

@@ -12,5 +12,8 @@
         <file>shaders/simple_mesh/fshader.glsl</file>
         <file>shaders/gizmos/vshader.glsl</file>
         <file>shaders/gizmos/fshader.glsl</file>
+        <file>shaders/normals/vshader.glsl</file>
+        <file>shaders/normals/gshader.glsl</file>
+        <file>shaders/normals/fshader.glsl</file>
     </qresource>
 </RCC>

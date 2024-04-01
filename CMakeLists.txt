@@ -16,7 +16,10 @@ find_package(Qt6 COMPONENTS
         OpenGLWidgets
         Qml
         Quick
+        Concurrent
         REQUIRED)
+
+find_package(OpenCL REQUIRED)
 
 include_directories(include)
 
@@ -47,11 +50,16 @@ set(RENDER_SRC
         src/render_object/SplineRenderer.cpp
         include/render_object/PointRenderer.h
         src/render_object/PointRenderer.cpp
+        include/render_object/NormalRenderer.h
+        src/render_object/NormalRenderer.cpp
 )
 set(OTHER_SRC
         src/timer.cpp
 )
 
+INCLUDE_DIRECTORIES(${OpenCL_INCLUDE_DIRS})
+
+LINK_DIRECTORIES(${OpenCL_LIBRARY})
 
 add_executable(Nomospline main.cpp ${ENGINE_SRC} ${WIDGET_SRC} ${STRUCTURES_SRC} ${OTHER_SRC} ${RENDER_SRC} shaders.qrc images.qrc)
 
@@ -63,8 +71,9 @@ target_link_libraries(Nomospline
         Qt::OpenGLWidgets
         Qt::Qml
         Qt::Quick
+        Qt6::Concurrent
+        OpenCL::OpenCL
         )
-
 
 
 if (WIN32 AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)

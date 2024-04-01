@@ -26,5 +26,5 @@ struct VertexData
 struct Mesh
 {
     QVector<VertexData> vertices;
-    QVector<GLushort> indices;
+    QVector<GLuint> indices;
 };

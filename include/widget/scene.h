@@ -13,6 +13,7 @@
 #include "render_object/GizmosRenderer.h"
 #include "render_object/SplineRenderer.h"
 #include "render_object/PointRenderer.h"
+#include "render_object/NormalRenderer.h"
 
 
 //! [1]
@@ -60,6 +61,7 @@ private:
     SplineRenderer splineRenderer;
     GizmosRenderer gizmosRenderer;
     PointRenderer pointRenderer;
+    NormalRenderer normalRenderer;
 
     QPoint previousMousePosition;
 };

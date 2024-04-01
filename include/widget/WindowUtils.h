@@ -1,9 +1,15 @@
 #pragma once
 
 #include <QtQmlIntegration>
+#include <QtConcurrent>
+
 #include "engine/MeshLoader.h"
 #include "engine/SplineLoader.h"
 #include "scene.h"
+
+QVector<QVector4D> filterPoints(const QVector<QVector4D>& points);
+void asyncIntersection();
+void asyncEvaluate();
 
 class WindowUtils : public QObject {
 Q_OBJECT
@@ -11,6 +17,7 @@ Q_OBJECT
     Q_PROPERTY(Scene* scene READ getScene WRITE setScene NOTIFY sceneChanged)
     QML_ELEMENT
 public:
+    WindowUtils();
     QQuickWindow* getWindow() { return window;}
     void setWindow(QQuickWindow* win) {window = win;}
 
@@ -22,6 +29,8 @@ public:
     void sceneChanged(Scene* scene);
 public:
     Q_INVOKABLE QUrl getHomeDirectory();
+
+    Q_INVOKABLE void clear();
 
     Q_INVOKABLE void importMesh(const QString &path);
 
@@ -48,12 +57,13 @@ public:
     Q_INVOKABLE void setDown();
 
 private:
+    SceneData* data = nullptr;
+    QFutureWatcher<void> watcherIntersection;
+    QFutureWatcher<void> watcherEvalutation;
 
     MeshLoader meshLoader;
     SplineLoader splineLoader;
 
-    Scene *scene;
-    QQuickWindow *window;
-
-    static QVector<QVector4D> filterPoints(const QVector<QVector4D>& points);
+    Scene *scene = nullptr;
+    QQuickWindow *window = nullptr;
 };

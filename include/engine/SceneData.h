@@ -30,4 +30,7 @@ public:
     bool isRenderMeshes = false;
     bool isRenderEvaluate = false;
     bool isRenderSpline = false;
+
+    bool intersectionBlocker = false;
+    bool evalutaionBlocker = false;
 };

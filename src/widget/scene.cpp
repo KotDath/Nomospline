@@ -119,18 +119,20 @@ void SceneRenderer::paint() {
     glDisable(GL_BLEND);
     backgroundRenderer.paint();
     if (sceneData->isRenderMeshes) {
-        for (const auto& mesh : sceneData->meshes) {
+        for (const auto &mesh: sceneData->meshes) {
             meshRenderer.setMesh(mesh);
             meshRenderer.paint();
+            normalRenderer.setMesh(mesh);
+            normalRenderer.paint();
         }
 
-        pointRenderer.setMesh(sceneData->intersectionPoints);
-        pointRenderer.paint();
-
+        if (!sceneData->intersectionBlocker && sceneData->intersectionPoints) {
+            pointRenderer.setMesh(sceneData->intersectionPoints);
+            pointRenderer.paint();
+        }
     }
 
-
-    if (sceneData->isRenderEvaluate) {
+    if (sceneData->isRenderEvaluate && !sceneData->evalutaionBlocker) {
         for (const auto &mesh: sceneData->splineMeshes) {
             meshRenderer.setMesh(mesh);
             meshRenderer.paint();
@@ -138,7 +140,7 @@ void SceneRenderer::paint() {
     }
 
     if (sceneData->isRenderSpline) {
-        for (const auto& spl : sceneData->splines) {
+        for (const auto &spl: sceneData->splines) {
             splineRenderer.setSpline(spl);
             splineRenderer.paint();
         }
@@ -173,6 +175,7 @@ void SceneRenderer::initShaders() {
     gizmosRenderer.initShaders();
     splineRenderer.initShaders();
     pointRenderer.initShaders();
+    normalRenderer.initShaders();
 }
 
 void SceneRenderer::mouseMoveEvent(QMouseEvent *event) {

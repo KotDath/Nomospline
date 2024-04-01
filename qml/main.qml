@@ -47,6 +47,7 @@ ApplicationWindow {
 
     menuBar: MenuBar {
         Menu {
+            width: 300
             title: qsTr("&File")
             Action {
                 text: qsTr("&Import...")
@@ -56,7 +57,9 @@ ApplicationWindow {
             }
             Action {
                 text: qsTr("&Clear scene")
-
+                onTriggered: {
+                    windowUtils.clear()
+                }
             }
             Action {
                 text: qsTr("&Evaluate")
@@ -74,6 +77,7 @@ ApplicationWindow {
             Action { text: qsTr("&Quit") }
         }
         Menu {
+            width: 300
             title: qsTr("&Examples")
             Action {
                 text: qsTr("&Neco")
@@ -87,12 +91,15 @@ ApplicationWindow {
 
         }
         Menu {
+            width: 300
             title: qsTr("&Help")
             Action { text: qsTr("&About") }
         }
     }
 
     Item {
+        anchors.fill: parent
+        id: keyobject
         focus: true
         Keys.onPressed: {
             if (event.key === Qt.Key_F11) {
@@ -121,27 +128,29 @@ ApplicationWindow {
                 windowUtils.setDown()
             }
         }
+
+        SplitView {
+            anchors.fill: parent
+
+            Settings {
+                windowUtils: windowUtils
+                SplitView.fillHeight: true
+                SplitView.minimumWidth: 200
+                SplitView.preferredWidth:parent.width / 5.0
+                SplitView.maximumWidth: parent.width / 2.0
+                clip: true
+            }
+
+            Scene {
+                id: scene
+                width: 1000
+                height: 1000
+            }
+
+
+        }
     }
 
-    SplitView {
-        anchors.fill: parent
 
-        Settings {
-            windowUtils: windowUtils
-            SplitView.fillHeight: true
-            SplitView.minimumWidth: 200
-            SplitView.preferredWidth:parent.width / 5.0
-            SplitView.maximumWidth: parent.width / 2.0
-            clip: true
-        }
-
-        Scene {
-            id: scene
-            width: 1000
-            height: 1000
-        }
-
-
-    }
 
 }

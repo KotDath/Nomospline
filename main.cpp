@@ -4,6 +4,7 @@
 #include <iostream>
 #include <QtQml>
 #include <QUrl>
+#include <CL/cl.h>
 
 #include "widget/scene.h"
 #include "widget/WindowUtils.h"

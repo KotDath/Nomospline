@@ -60,7 +60,7 @@ QMatrix4x4 invertMatrix4D(const QMatrix4x4 &matrix)
 Mesh *SplineUtils::evaluate(NURBS *spline) {
     Timer timer("Evaluate mesh started", "Evaluate mesh finished");
     auto mesh = new Mesh();
-    float N = 100, M = 100;
+    float N = 1000, M = 500;
     float du = (spline->knotU.last() - spline->knotU.first()) / (N - 1), dv = (spline->knotV.last() -
             spline->knotV.first()) / (M - 1);
     mesh->vertices.reserve(N * M);

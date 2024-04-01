@@ -6,7 +6,7 @@ void PointRenderer::setMesh(const Mesh *mesh) {
     arrayBuf.allocate(msh->vertices.data(), msh->vertices.count() * sizeof(VertexData));
 
     indexBuf.bind();
-    indexBuf.allocate(msh->indices.data(), msh->indices.count() * sizeof(GLushort));
+    indexBuf.allocate(msh->indices.data(), msh->indices.count() * sizeof(GLuint));
 }
 
 void PointRenderer::initShaders() {
@@ -31,6 +31,22 @@ void PointRenderer::paint() {
         program->setUniformValue(mvp_matrix,
                                  sceneData->camera.getProjection() * sceneData->camera.getView() * model);
     }
+
+    int point_color = program->uniformLocation("point_color");
+
+    if (point_color != -1) {
+
+        program->setUniformValue(point_color, 1.0, 0.0, 0.0);
+    }
+
+
+    int point_size = program->uniformLocation("point_size");
+
+    if (point_size != -1) {
+
+        program->setUniformValue(point_size, 10.0f);
+    }
+
 
     int vertexLocation = program->attributeLocation("a_Position");
     program->enableAttributeArray(vertexLocation);
