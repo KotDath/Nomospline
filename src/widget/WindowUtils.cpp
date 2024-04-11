@@ -175,6 +175,13 @@ void asyncIntersection() {
     data->intersectionPoints = new Mesh();
     for (int i = 0; i < data->splines.length(); ++i) {
         for (int j = 0; j < i; ++j) {
+
+            if (!SplineUtils::isBBIntersected(data->splines[j], data->splines[i])) {
+                qDebug() << "Bounding boxes not intersected. Exit.";
+                continue;
+            }
+
+
             auto intersection = SplineUtils::getInitialPoints(data->splines[j], data->splines[i]);
             qDebug() << "intersection: " << intersection;
 

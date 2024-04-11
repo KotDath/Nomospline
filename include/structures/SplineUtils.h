@@ -5,6 +5,11 @@
 
 class SplineUtils {
 public:
+
+    static std::pair<QVector3D, QVector3D> getBoundingBox(NURBS* spline);
+
+    static bool isBBIntersected(NURBS* s1, NURBS* s2);
+
     static Mesh *evaluate(NURBS *spline);
 
     static QVector3D getPoint(NURBS *spline, GLfloat u, GLfloat v);

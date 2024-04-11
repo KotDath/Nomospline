@@ -1,6 +1,6 @@
-import QtQuick.Controls
+import QtQuick.Controls 2.15
 import QtQuick 2.0
-import QtQuick.Dialogs
+import QtQuick.Dialogs as QQD
 import QtQuick.Layouts
 
 import Scene 1.0
@@ -23,13 +23,13 @@ ApplicationWindow {
         scene: scene
         window: theWindow
     }
-    FileDialog {
+    QQD.FileDialog {
         id: fileDialog
 
         title: "Please choose a file"
         nameFilters: ["NURBS Spline or mesh (*.obj *.d3m)"]
         currentFolder: windowUtils.getHomeDirectory()
-        fileMode: FileDialog.OpenFiles
+        fileMode: QQD.FileDialog.OpenFiles
 
         visible: false
 
@@ -70,6 +70,8 @@ ApplicationWindow {
             Action {
                 text: qsTr("&Calculate Intersection")
                 onTriggered: {
+                    var component = Qt.createComponent("IntersectionDialog.qml");
+
                     windowUtils.calculateIntersection()
                 }
             }
@@ -150,7 +152,4 @@ ApplicationWindow {
 
         }
     }
-
-
-
 }

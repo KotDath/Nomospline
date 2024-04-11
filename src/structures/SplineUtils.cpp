@@ -2,6 +2,7 @@
 // Created by kotdath on 2/15/24.
 //
 
+#include <limits>
 #include <QMatrix4x4>
 #include "structures/SplineUtils.h"
 
@@ -60,7 +61,7 @@ QMatrix4x4 invertMatrix4D(const QMatrix4x4 &matrix)
 Mesh *SplineUtils::evaluate(NURBS *spline) {
     Timer timer("Evaluate mesh started", "Evaluate mesh finished");
     auto mesh = new Mesh();
-    float N = 1000, M = 500;
+    float N = 100, M = 100;
     float du = (spline->knotU.last() - spline->knotU.first()) / (N - 1), dv = (spline->knotV.last() -
             spline->knotV.first()) / (M - 1);
     mesh->vertices.reserve(N * M);
@@ -1417,4 +1418,40 @@ bool SplineUtils::isBound(NURBS *spline1, NURBS *spline2, const QVector4D &point
     bool inB = point.w() <= spline2->knotV.last() && point.w() >= spline2->knotV.first();
 
     return inU && inV && inA && inB;
+}
+
+std::pair<QVector3D, QVector3D> SplineUtils::getBoundingBox(NURBS *spline) {
+    auto FLT_MIN =
+            std::numeric_limits<float>::min();
+
+    auto FLT_MAX = std::numeric_limits<float>::max();
+
+    QVector3D bbmax{FLT_MIN, FLT_MIN, FLT_MIN};
+    QVector3D bbmin{FLT_MAX, FLT_MAX, FLT_MAX};
+
+    for (const auto& controlPoint : spline->controlPoints) {
+        for (const auto& point : controlPoint) {
+            bbmin.setX(qMin(bbmin.x(), point.x()));
+            bbmin.setY(qMin(bbmin.y(), point.y()));
+            bbmin.setZ(qMin(bbmin.z(), point.z()));
+
+            bbmax.setX(qMax(bbmax.x(), point.x()));
+            bbmax.setY(qMax(bbmax.y(), point.y()));
+            bbmax.setZ(qMax(bbmax.z(), point.z()));
+        }
+    }
+
+    return std::make_pair(bbmin, bbmax);
+}
+
+bool SplineUtils::isBBIntersected(NURBS *s1, NURBS *s2) {
+    auto bb1 = getBoundingBox(s1);
+    auto bb2 = getBoundingBox(s2);
+
+    bool xOverlap = (bb1.first.x() <= bb2.second.x()) && (bb1.second.x() >= bb2.first.x());
+    bool yOverlap = (bb1.first.y() <= bb2.second.y()) && (bb1.second.y() >= bb2.first.y());
+    bool zOverlap = (bb1.first.z() <= bb2.second.z()) && (bb1.second.z() >= bb2.first.z());
+
+    // If there is overlap in all dimensions, the boxes intersect
+    return xOverlap && yOverlap && zOverlap;
 }
