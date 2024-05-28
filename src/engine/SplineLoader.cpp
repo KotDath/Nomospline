@@ -138,3 +138,106 @@ NURBS *SplineLoader::load(const QString &path)
 
     return spline;
 }
+
+NURBSCurve *SplineLoader::loadCurve(const QString &path) {
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly))
+    {
+        QMessageBox::information(0, "error", file.errorString());
+    }
+
+    QTextStream in(&file);
+
+    auto spline = new NURBSCurve();
+
+    QVector<QVector3D> tmp_points;
+    float u_min, u_max, v_min, v_max;
+
+
+    while (!in.atEnd())
+    {
+        QString line = in.readLine();
+        if (line.startsWith("looped"))
+        {
+            spline->isLooped = true;
+        }
+
+        if (line.startsWith("#"))
+        {
+            continue;
+        }
+
+        if (line.startsWith("v "))
+        {
+            QStringList words = line.split(" ");
+            tmp_points.append({QVector3D(
+                    words[1].toFloat(),
+                    words[2].toFloat(),
+                    words[3].toFloat()
+            )});
+        }
+
+        if (line.startsWith("parm t "))
+        {
+            QStringList words = line.split(" ");
+            int tmp = 0;
+            for (const QString &word: words)
+            {
+                if (tmp < 2) {
+                    ++tmp;
+                    continue;
+                }
+
+                auto value = word.split("/")[0].toFloat();
+                spline->knott.append(value);
+                ++tmp;
+            }
+        }
+
+        if (line.startsWith("deg "))
+        {
+            QStringList words = line.split(" ");
+            spline->tDegree = words[1].toInt();
+        }
+
+        if (line.startsWith("surf "))
+        {
+            QStringList words = line.split(" ");
+            int tmp = 0;
+            for (const QString &word: words)
+            {
+                if (tmp == 1) {
+                    u_min = word.toFloat();
+                }
+
+                if (tmp == 2) {
+                    u_max = word.toFloat();
+                }
+
+                if (tmp == 3) {
+                    v_min = word.toFloat();
+                }
+
+                if (tmp == 4) {
+                    v_max = word.toFloat();
+                }
+
+                if (tmp > 4) {
+
+                }
+                ++tmp;
+            }
+        }
+    }
+
+    spline->controlPoints.resize(tmp_points.size());
+    for (int i = 0; i < tmp_points.size(); ++i)
+    {
+        spline->controlPoints[i] = tmp_points[i];
+    }
+
+    file.close();
+
+    qDebug() <<"Curve data: " << spline->controlPoints << spline->tDegree << spline->knott;
+    return spline;
+}

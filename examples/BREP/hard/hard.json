@@ -1,0 +1,49 @@
+{
+    "surfaces": [
+        {
+            "face_1.obj": {
+                "curves": [
+
+                ]
+            }
+        },
+        {
+            "face_2.obj": {
+                "curves": [
+
+                ]
+            }
+        },
+        {
+            "face_3.obj": {
+                "curves": [
+
+                ]
+            }
+        },
+        {
+            "face_4.obj": {
+                "curves": [
+
+                ]
+            }
+        },
+        {
+            "face_5.obj": {
+                "curves": [
+
+                ]
+            }
+        },
+        {
+            "face_6.obj": {
+                "curves": [
+
+                ]
+            }
+        }
+    ],
+
+    "offset": [1, 2, 3],
+    "scale": [1, 1, 1]
+}

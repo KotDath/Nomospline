@@ -1,0 +1,29 @@
+{
+    "surfaces": [
+        {
+            "cylinder_y.obj": {
+                "curves": [
+
+                ]
+            }
+        },
+        {
+            "face_new_1.obj": {
+                "curves": [
+                    "trimming.obj"
+                ]
+            }
+        },
+        {
+            "face_new_2.obj": {
+                "curves": [
+                    "trimming.obj"
+                ]
+            }
+        }
+    ],
+
+    "offset": [1, 2, 3],
+    "scale": [1, 1, 1],
+    "rotation": [0, 0, 90]
+}

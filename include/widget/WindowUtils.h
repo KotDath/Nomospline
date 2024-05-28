@@ -6,9 +6,11 @@
 #include "engine/MeshLoader.h"
 #include "engine/SplineLoader.h"
 #include "scene.h"
+#include "engine/BREPLoader.h"
 
 QVector<QVector4D> filterPoints(const QVector<QVector4D>& points);
 void asyncIntersection();
+void asyncDiff();
 void asyncEvaluate();
 
 class WindowUtils : public QObject {
@@ -30,13 +32,21 @@ public:
 public:
     Q_INVOKABLE QUrl getHomeDirectory();
 
+    Q_INVOKABLE QUrl getDefaultSplineFolder();
+
+    Q_INVOKABLE QUrl getDefaultBREPFolder();
+
     Q_INVOKABLE void clear();
 
     Q_INVOKABLE void importMesh(const QString &path);
 
+    Q_INVOKABLE void importBREP(const QString &path);
+
     Q_INVOKABLE void evaluate();
 
     Q_INVOKABLE void calculateIntersection();
+
+    Q_INVOKABLE void calculateDiff();
 
     Q_INVOKABLE void drawMeshes(bool checked);
 
@@ -63,7 +73,7 @@ private:
 
     MeshLoader meshLoader;
     SplineLoader splineLoader;
-
+    BREPLoader brepLoader;
     Scene *scene = nullptr;
     QQuickWindow *window = nullptr;
 };

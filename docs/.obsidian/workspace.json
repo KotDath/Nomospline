@@ -30,9 +30,19 @@
                 "source": false
               }
             }
+          },
+          {
+            "id": "438ea80fbe9adbde",
+            "type": "leaf",
+            "state": {
+              "type": "release-notes",
+              "state": {
+                "currentVersion": "1.5.12"
+              }
+            }
           }
         ],
-        "currentTab": 1
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -125,7 +135,7 @@
       "markdown-importer:Open format converter": false
     }
   },
-  "active": "9f6676448db00a8d",
+  "active": "438ea80fbe9adbde",
   "lastOpenFiles": [
     "main.md",
     "NURBS.md",

@@ -8,6 +8,8 @@ set(CMAKE_AUTOUIC ON)
 
 list(APPEND CMAKE_PREFIX_PATH "~/Qt/6.6.1/gcc_64")
 
+
+
 find_package(Qt6 COMPONENTS
         Core
         Gui
@@ -23,7 +25,9 @@ find_package(OpenCL REQUIRED)
 
 include_directories(include)
 
-SET(ENGINE_SRC src/engine/MeshLoader.cpp src/engine/Camera.cpp src/engine/SplineLoader.cpp)
+SET(ENGINE_SRC src/engine/MeshLoader.cpp src/engine/Camera.cpp src/engine/SplineLoader.cpp
+        include/engine/Tesselator.h
+        include/engine/Delaunay.h)
 SET(WIDGET_SRC
         include/widget/scene.h
         src/widget/scene.cpp
@@ -55,6 +59,15 @@ set(RENDER_SRC
 )
 set(OTHER_SRC
         src/timer.cpp
+        include/logger.h
+        src/logger.cpp
+        include/structures/PolylineCurve.h
+        src/engine/Tesselator.cpp
+        include/engine/BREPLoader.h
+        include/structures/BREP.h
+        src/engine/BREPLoader.cpp
+        include/structures/NURBSCurve.h
+        src/structures/BREP.cpp
 )
 
 INCLUDE_DIRECTORIES(${OpenCL_INCLUDE_DIRS})
@@ -74,6 +87,7 @@ target_link_libraries(Nomospline
         Qt6::Concurrent
         OpenCL::OpenCL
         )
+
 
 
 if (WIN32 AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)

@@ -9,6 +9,25 @@ import WindowUtils 1.0
 ApplicationWindow {
     property string windowFull: "FullScreen"
     property string windowWindowed: "Windowed"
+
+    property bool isDebug: true
+
+    function getDirMesh() {
+        if (theWindow.isDebug) {
+            return windowUtils.getDefaultSplineFolder();
+        } else {
+            return windowUtils.getHomeDirectory();
+        }
+    }
+
+    function getDirBREP() {
+        if (theWindow.isDebug) {
+            return windowUtils.getDefaultBREPFolder();
+        } else {
+            return windowUtils.getHomeDirectory();
+        }
+    }
+
     title: "Qt Quick Controls Gallery"
     id: theWindow
     minimumWidth: 480
@@ -28,7 +47,7 @@ ApplicationWindow {
 
         title: "Please choose a file"
         nameFilters: ["NURBS Spline or mesh (*.obj *.d3m)"]
-        currentFolder: windowUtils.getHomeDirectory()
+        currentFolder: theWindow.getDirMesh()
         fileMode: QQD.FileDialog.OpenFiles
 
         visible: false
@@ -45,6 +64,28 @@ ApplicationWindow {
         }
     }
 
+    QQD.FileDialog {
+        id: brepDialog
+
+        title: "Please choose a file"
+        nameFilters: ["BREP struct (*.json)"]
+        currentFolder: theWindow.getDirBREP()
+        fileMode: QQD.FileDialog.OpenFiles
+
+        visible: false
+
+        onAccepted: {
+            for (let i = 0; i < brepDialog.selectedFiles.length; i++) {
+
+                let path = brepDialog.selectedFiles[i].toString();
+                path = path.replace(/^(file:\/{2})/,"");
+                let cleanPath = decodeURIComponent(path);
+                windowUtils.importBREP(cleanPath)
+            }
+
+        }
+    }
+
     menuBar: MenuBar {
         Menu {
             width: 300
@@ -53,6 +94,12 @@ ApplicationWindow {
                 text: qsTr("&Import...")
                 onTriggered: {
                     fileDialog.open()
+                }
+            }
+            Action {
+                text: qsTr("&Import BREP")
+                onTriggered: {
+                    brepDialog.open()
                 }
             }
             Action {
@@ -73,6 +120,14 @@ ApplicationWindow {
                     var component = Qt.createComponent("IntersectionDialog.qml");
 
                     windowUtils.calculateIntersection()
+                }
+            }
+            Action {
+                text: qsTr("&Calculate Difference")
+                onTriggered: {
+                    var component = Qt.createComponent("IntersectionDialog.qml");
+
+                    windowUtils.calculateDiff()
                 }
             }
             MenuSeparator { }

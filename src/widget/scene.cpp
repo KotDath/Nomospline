@@ -95,6 +95,10 @@ void Scene::addSpline(NURBS *spl) {
     SceneData::getInstance()->splines.push_back(spl);
 }
 
+void Scene::addBREP(BREP *brep) {
+    SceneData::getInstance()->breps.push_back(brep);
+}
+
 void SceneRenderer::init() {
     if (!m_program) {
         QSGRendererInterface *rif = m_window->rendererInterface();
@@ -130,6 +134,7 @@ void SceneRenderer::paint() {
             pointRenderer.setMesh(sceneData->intersectionPoints);
             pointRenderer.paint();
         }
+
     }
 
     if (sceneData->isRenderEvaluate && !sceneData->evalutaionBlocker) {
@@ -143,6 +148,13 @@ void SceneRenderer::paint() {
         for (const auto &spl: sceneData->splines) {
             splineRenderer.setSpline(spl);
             splineRenderer.paint();
+        }
+
+        for (const auto& brep: sceneData->breps) {
+            for (auto key : brep->surfaces.keys()) {
+                splineRenderer.setSpline(key);
+                splineRenderer.paint();
+            }
         }
     }
 

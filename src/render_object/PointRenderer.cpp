@@ -44,7 +44,7 @@ void PointRenderer::paint() {
 
     if (point_size != -1) {
 
-        program->setUniformValue(point_size, 10.0f);
+        program->setUniformValue(point_size, 5.0f);
     }
 
 

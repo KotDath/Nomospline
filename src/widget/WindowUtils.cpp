@@ -1,5 +1,6 @@
 #include "widget/WindowUtils.h"
 #include "structures/SplineUtils.h"
+#include "logger.h"
 
 QUrl WindowUtils::getHomeDirectory() {
 
@@ -124,19 +125,19 @@ WindowUtils::WindowUtils() : QObject() {
 }
 
 void WindowUtils::clear() {
-    for (const auto& obj : data->splines) {
+    for (const auto &obj: data->splines) {
         delete obj;
     }
 
     data->splines.clear();
 
-    for (const auto& obj : data->meshes) {
+    for (const auto &obj: data->meshes) {
         delete obj;
     }
 
     data->meshes.clear();
 
-    for (const auto& obj : data->splineMeshes) {
+    for (const auto &obj: data->splineMeshes) {
         delete obj;
     }
 
@@ -147,31 +148,69 @@ void WindowUtils::clear() {
     window->update();
 }
 
-QVector<QVector4D> filterPoints(const QVector<QVector4D> &points) {
-    const float epsilon = 0.001;
-    QVector<QVector4D> answer;
-    for (const auto &point1: points) {
-        if (answer.isEmpty()) {
-            answer.append(point1);
-        } else {
-            float min = (point1 - answer[0]).length();
-            for (const auto &point2: answer) {
-                float tmp = (point1 - point2).length();
-                min = std::min(min, tmp);
-            }
+void WindowUtils::importBREP(const QString &path) {
+    qDebug() << path;
+    QString absolutePath = QDir::current().absoluteFilePath(path);
+    qDebug() << absolutePath;
+    if (path.endsWith(".json", Qt::CaseInsensitive)) {
+        auto *brep = brepLoader.load(path);
+        scene->addBREP(brep);
 
-            if (min > epsilon) {
-                answer.append(point1);
-            }
-        }
 
     }
+}
 
-    return answer;
+QUrl WindowUtils::getDefaultSplineFolder() {
+    QUrl url{"file:///home/kotdath/Documents/qt_projects/Nomospline/examples"};
+    qDebug() << url;
+    return url;
+
+}
+
+QUrl WindowUtils::getDefaultBREPFolder() {
+    QUrl url{"file:///home/kotdath/Documents/qt_projects/Nomospline/examples/BREP"};
+    qDebug() << url;
+    return url;
+}
+
+void WindowUtils::calculateDiff() {
+    data->intersectionBlocker = true;
+    auto future = QtConcurrent::run(asyncDiff); // for class method
+    QObject::connect(&watcherIntersection, &QFutureWatcher<void>::finished, [&]() {
+        qDebug() << "Async function completed!";
+        // Execute another code block here
+        data->intersectionBlocker = false;
+        window->update();
+    });
+    watcherIntersection.setFuture(future);
+}
+
+void asyncDiff() {
+    auto data = SceneData::getInstance();
+    auto logger = Logger::getInstance();
+
+    for (int i = 0; i < data->breps.length(); ++i) {
+        for (int j = 0; j < i; ++j) {
+            Tesselator::diff(data->breps[j], data->breps[i]);
+        }
+    }
+
+    return;
 }
 
 void asyncIntersection() {
     auto data = SceneData::getInstance();
+    auto logger = Logger::getInstance();
+
+    for (int i = 0; i < data->breps.length(); ++i) {
+        for (int j = 0; j < i; ++j) {
+            Tesselator::intersection(data->breps[j], data->breps[i]);
+        }
+    }
+
+    return;
+
+    /*
     data->intersectionPoints = new Mesh();
     for (int i = 0; i < data->splines.length(); ++i) {
         for (int j = 0; j < i; ++j) {
@@ -181,6 +220,9 @@ void asyncIntersection() {
                 continue;
             }
 
+
+            logger->write(data->splines[j]->knotU.first(), data->splines[j]->knotU.last(),
+                          data->splines[j]->knotV.first(), data->splines[j]->knotV.last());
 
             auto intersection = SplineUtils::getInitialPoints(data->splines[j], data->splines[i]);
             qDebug() << "intersection: " << intersection;
@@ -206,7 +248,7 @@ void asyncIntersection() {
                 Timer timer("Plus side started", "Plus side finished");
                 auto iterIntersection = SplineUtils::iterPointsPlus(data->splines[j], data->splines[i], startPoint);
                 for (auto p: iterIntersection) {
-                    data->intersectionPoints->vertices.append(p);
+                    data->intersectionPoints->vertices.append(SplineUtils::getPoint(data->splines[j], p.x(), p.y()));
                     data->intersectionPoints->indices.append(data->intersectionPoints->indices.length());
                 }
                 timer.Stop();
@@ -214,14 +256,16 @@ void asyncIntersection() {
                 startPoint = point;
                 iterIntersection = SplineUtils::iterPointsMinus(data->splines[j], data->splines[i], startPoint);
                 for (auto p: iterIntersection) {
-                    data->intersectionPoints->vertices.append(p);
+                    data->intersectionPoints->vertices.append(SplineUtils::getPoint(data->splines[j], p.x(), p.y()));
                     data->intersectionPoints->indices.append(data->intersectionPoints->indices.length());
                 }
                 timer.Stop();
             }
         }
     }
+     */
 
+    logger->deployData("abobus.txt");
 }
 
 
@@ -234,5 +278,25 @@ void asyncEvaluate() {
 
     for (const auto &spline: data->splines) {
         data->splineMeshes.append(SplineUtils::evaluate(spline));
+    }
+
+    for (const auto &brep: data->breps) {
+        //brep->isInsideBREP({2, 2, 0.4});
+
+        for (const auto &spline: brep->surfaces.keys()) {
+            qDebug() << "Center: " << SplineUtils::getPoint(spline, 0.5, 0.5) << "Normal: "
+                     << SplineUtils::getNormal(spline, 0.5, 0.5);
+            QVector<QVector<QVector2D>> limits;
+            for (const auto &curv: brep->surfaces[spline]) {
+                limits.append(curv->sequencePoints);
+            }
+
+            if (limits.empty()) {
+                data->splineMeshes.append(Tesselator::tesselate(spline, limits, true));
+            } else {
+                data->splineMeshes.append(Tesselator::tesselate(spline, limits, false));
+            }
+
+        }
     }
 }

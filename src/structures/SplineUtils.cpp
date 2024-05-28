@@ -5,30 +5,29 @@
 #include <limits>
 #include <QMatrix4x4>
 #include "structures/SplineUtils.h"
+#include "logger.h"
+#include "structures/BREP.h"
 
-float deltaAlpha = M_PI / 15;
-float stepMin = 0.01;
+float deltaAlpha = M_PI / 9;
+float stepMin = 0.05;
 float stepMax = 0.1;
 
 class NotBoundException : public std::exception {
 public:
-    char * what () {
+    char *what() {
         return "Point not bound";
     }
 };
 
-float determinant(QMatrix3x3 mat)
-{
+float determinant(QMatrix3x3 mat) {
     float det = 0;
-    for (int i = 0; i < 3; i++)
-    {
+    for (int i = 0; i < 3; i++) {
         det += mat(0, i) * (mat(1, (i + 1) % 3) * mat(2, (i + 2) % 3) - mat(1, (i + 2) % 3) * mat(2, (i + 1) % 3));
     }
     return det;
 }
 
-QMatrix3x3 invertMatrix3D(const QMatrix3x3 &matrix)
-{
+QMatrix3x3 invertMatrix3D(const QMatrix3x3 &matrix) {
     float det = determinant(matrix);
     if (std::abs(det) < 0.0001) // Check for singularity
         return QMatrix3x3();
@@ -52,60 +51,16 @@ QMatrix3x3 invertMatrix3D(const QMatrix3x3 &matrix)
     return cofactors * (1 / det);
 }
 
-QMatrix4x4 invertMatrix4D(const QMatrix4x4 &matrix)
-{
+QMatrix4x4 invertMatrix4D(const QMatrix4x4 &matrix) {
     return matrix.inverted();
 }
 
 
 Mesh *SplineUtils::evaluate(NURBS *spline) {
     Timer timer("Evaluate mesh started", "Evaluate mesh finished");
-    auto mesh = new Mesh();
-    float N = 100, M = 100;
-    float du = (spline->knotU.last() - spline->knotU.first()) / (N - 1), dv = (spline->knotV.last() -
-            spline->knotV.first()) / (M - 1);
-    mesh->vertices.reserve(N * M);
-    int k = 0;
-    for (int i = 0; i < N; ++i)
-    {
-        float u = i * du;
-        for (int j = 0; j < M; ++j)
-        {
-            float v = j * dv;
-            if (u > 1 && k == 0)
-            {
-                auto p1 = getPoint(spline, u - du, v);
-                auto p2 = getPoint(spline, u, v);
-                auto p3 = getPoint(spline, u + du, v);
-                qDebug() << "Points: " << p1 << p2 << p3;
-                qDebug() << "Accurate derivative: " << u << v << getDerivatives(spline, u, v).first << "Approximation: "
-                         << (p3 - p1) / (du * 2);
-                qDebug() << "Accurate 2 derivative: " << u << v << getDerivatives2(spline, u, v).first << "Approximation: "
-                         << (p3 - 2 * p2 + p1) / (du * du);
-                ++k;
-            }
+    return Tesselator::tesselate(spline, {
 
-
-            mesh->vertices.append(VertexData(getPoint(spline, u, v), getNormal(spline, u, v)));
-        }
-    }
-
-
-    mesh->indices.reserve((N - 1) * (M - 1));
-
-    for (int i = 0; i < N - 1; i++)
-        for (int j = 0; j < M - 1; j++)
-        {
-            int offset = i * M + j;
-            mesh->indices.append(i * M + j);
-            mesh->indices.append((i + 1) * M + j);
-            mesh->indices.append(i * M + j + 1);
-            mesh->indices.append(i * M + j + 1);
-            mesh->indices.append((i + 1) * M + j);
-            mesh->indices.append((i + 1) * M + j + 1);
-        }
-
-    return mesh;
+    }, true);
 }
 
 QVector3D SplineUtils::getPoint(NURBS *spline, GLfloat u, GLfloat v) {
@@ -117,11 +72,9 @@ QVector3D SplineUtils::getPoint(NURBS *spline, GLfloat u, GLfloat v) {
 
     QVector4D point;
 
-    for (int l = 0; l <= spline->vDegree; l++)
-    {
+    for (int l = 0; l <= spline->vDegree; l++) {
         QVector4D temp;
-        for (int k = 0; k <= spline->uDegree; k++)
-        {
+        for (int k = 0; k <= spline->uDegree; k++) {
             auto current = spline->controlPoints[span_u - spline->uDegree + k][span_v - spline->vDegree + l];
             current.setX(current.x() * current.w());
             current.setY(current.y() * current.w());
@@ -144,25 +97,20 @@ int SplineUtils::findSpan(GLsizei degree, const QVector<GLfloat> &knots, GLfloat
     GLsizei n = knots.count() - degree - 2;
     assert(n >= 0);
     auto a = knots[n + 1];
-    if (param >= (knots[n + 1] - std::numeric_limits<float>::epsilon()))
-    {
+    if (param >= (knots[n + 1] - std::numeric_limits<float>::epsilon())) {
         return n;
     }
 
     GLsizei low = degree;
     GLsizei high = n + 1;
     auto mid = static_cast<GLsizei>(std::floor((low + high) / 2.0));
-    while (param < knots[mid] || param >= knots[mid + 1])
-    {
-        if (high - low <= 1)
-        {
+    while (param < knots[mid] || param >= knots[mid + 1]) {
+        if (high - low <= 1) {
             return low;
         }
-        if (param < knots[mid])
-        {
+        if (param < knots[mid]) {
             high = mid;
-        } else
-        {
+        } else {
             low = mid;
         }
         mid = static_cast<GLsizei>(std::floor((low + high) / 2.0));
@@ -180,13 +128,11 @@ std::vector<GLfloat> SplineUtils::basicFunctions(GLsizei deg, GLsizei span, cons
 
     N[0] = 1.0;
 
-    for (GLsizei j = 1; j <= static_cast<GLsizei>(deg); j++)
-    {
+    for (GLsizei j = 1; j <= static_cast<GLsizei>(deg); j++) {
         left[j] = (u - knots[span + 1 - j]);
         right[j] = knots[span + j] - u;
         saved = 0.0;
-        for (GLsizei r = 0; r < j; r++)
-        {
+        for (GLsizei r = 0; r < j; r++) {
             temp = N[r] / (right[r + 1] + left[j - r]);
             N[r] = saved + right[r + 1] * temp;
             saved = left[j - r] * temp;
@@ -201,24 +147,21 @@ SplineUtils::getStepRadius(const QVector3D &ur1, const QVector3D &vr2, const QVe
                            const QVector3D &t) {
     float res = abs(QVector3D::dotProduct(ur1, t));
     float error = 0.001f;
-    float min = std::max(res, error);
+    float min = std::numeric_limits<float>::max();
 
 
     res = abs(QVector3D::dotProduct(vr2, t));
-    if (res > error && res < min)
-    {
+    if (res > error && res < min) {
         min = res;
     }
 
     res = abs(QVector3D::dotProduct(as1, t));
-    if (res > error && res < min)
-    {
+    if (res > error && res < min) {
         min = res;
     }
 
     res = abs(QVector3D::dotProduct(bs2, t));
-    if (res > error && res < min)
-    {
+    if (res > error && res < min) {
         min = res;
     }
 
@@ -233,22 +176,19 @@ int SplineUtils::getDirectionStepRadius(const QVector3D &ur1, const QVector3D &v
     int maxi = 0;
 
     res = abs(QVector3D::dotProduct(vr2, t));
-    if (res > error && res >= max)
-    {
+    if (res > error && res >= max) {
         max = res;
         maxi = 1;
     }
 
     res = abs(QVector3D::dotProduct(as1, t));
-    if (res > error && res >= max)
-    {
+    if (res > error && res >= max) {
         max = res;
         maxi = 2;
     }
 
     res = abs(QVector3D::dotProduct(bs2, t));
-    if (res > error && res >= max)
-    {
+    if (res > error && res >= max) {
         max = res;
         maxi = 3;
     }
@@ -264,8 +204,7 @@ QVector<QVector4D> SplineUtils::curveToSurfaceIntersectionU(NURBS *spline1, GLfl
     QMatrix2x2 g;
     QMatrix2x2 tmpMatrix;
 
-    while (tempV < spline1->knotV.last())
-    {
+    while (tempV < spline1->knotV.last()) {
         auto deltaV = getAdaptiveStepCurveV(spline1, u, tempV);
         GLfloat tempA = spline2->knotU.first();
         GLfloat tempB = spline2->knotV.first();
@@ -273,12 +212,10 @@ QVector<QVector4D> SplineUtils::curveToSurfaceIntersectionU(NURBS *spline1, GLfl
         auto c0 = getPoint(spline1, u, tempV);
         auto c = getDerivatives(spline1, u, tempV).second;
 
-        while (tempA < spline2->knotU.last())
-        {
+        while (tempA < spline2->knotU.last()) {
             auto deltaA = getAdaptiveStepU(spline2, tempA, tempB);
 
-            while (tempB < spline2->knotV.last())
-            {
+            while (tempB < spline2->knotV.last()) {
                 auto deltaB = getAdaptiveStepV(spline2, tempA, tempB);
 
                 auto der1 = getDerivatives(spline2, tempA, tempB); // s1, s2
@@ -315,16 +252,15 @@ QVector<QVector4D> SplineUtils::curveToSurfaceIntersectionU(NURBS *spline1, GLfl
                     QVector3D zeroSolution(tempV + t0, tempA + u0, tempB + v0); // начальное приближение
 
                     // дальше идёт решение системы численным методом(например Ньютона)
-                    try
-                    {
+                    try {
                         auto solution = NewtonSolution3D(spline1, spline2, zeroSolution, 0, u);
                         QVector4D insertSolution{u, solution.x(), solution.y(), solution.z()};
-                        auto delta = (getPoint(spline1, u, solution.x()) - getPoint(spline2, solution.y(), solution.z())).length();
+                        auto delta = (getPoint(spline1, u, solution.x()) -
+                                      getPoint(spline2, solution.y(), solution.z())).length();
                         if (isBound(spline1, spline2, insertSolution) && delta < 0.001) {
                             intersections.append(insertSolution);
                         }
-                    }catch (NotBoundException& e)
-                    {
+                    } catch (NotBoundException &e) {
                         qDebug() << e.what();
                     }
 
@@ -363,11 +299,9 @@ std::pair<QVector3D, QVector3D> SplineUtils::getDerivatives(NURBS *spline, GLflo
 
     QVector4D point;
 
-    for (int l = 0; l <= spline->vDegree; l++)
-    {
+    for (int l = 0; l <= spline->vDegree; l++) {
         QVector4D temp;
-        for (int k = 0; k <= spline->uDegree; k++)
-        {
+        for (int k = 0; k <= spline->uDegree; k++) {
             auto current = spline->controlPoints[span_u - spline->uDegree + k][span_v - spline->vDegree + l];
             current.setX(current.x() * current.w());
             current.setY(current.y() * current.w());
@@ -387,11 +321,9 @@ std::pair<QVector3D, QVector3D> SplineUtils::getDerivatives(NURBS *spline, GLflo
     point.setZ(0);
     point.setW(0);
 
-    for (int j = 0; j <= spline->vDegree; j++)
-    {
+    for (int j = 0; j <= spline->vDegree; j++) {
         QVector4D temp;
-        for (int i = 0; i < spline->uDegree; i++)
-        {
+        for (int i = 0; i < spline->uDegree; i++) {
             auto tmp1 = spline->controlPoints[span_u - spline->uDegree + i + 1][span_v - spline->vDegree + j];
             tmp1.setX(tmp1.x() * tmp1.w());
             tmp1.setY(tmp1.y() * tmp1.w());
@@ -420,11 +352,9 @@ std::pair<QVector3D, QVector3D> SplineUtils::getDerivatives(NURBS *spline, GLflo
     point.setZ(0);
     point.setW(0);
 
-    for (int i = 0; i <= spline->uDegree; i++)
-    {
+    for (int i = 0; i <= spline->uDegree; i++) {
         QVector4D temp;
-        for (int j = 0; j < spline->vDegree; j++)
-        {
+        for (int j = 0; j < spline->vDegree; j++) {
             auto tmp1 = spline->controlPoints[span_u - spline->uDegree + i][span_v - spline->vDegree + j + 1];
             tmp1.setX(tmp1.x() * tmp1.w());
             tmp1.setY(tmp1.y() * tmp1.w());
@@ -482,11 +412,9 @@ std::pair<QVector3D, QVector3D> SplineUtils::getDerivatives2(NURBS *spline, GLfl
 
     QVector4D point;
 
-    for (int l = 0; l <= spline->vDegree; l++)
-    {
+    for (int l = 0; l <= spline->vDegree; l++) {
         QVector4D temp;
-        for (int k = 0; k <= spline->uDegree; k++)
-        {
+        for (int k = 0; k <= spline->uDegree; k++) {
             auto current = spline->controlPoints[span_u - spline->uDegree + k][span_v - spline->vDegree + l];
             current.setX(current.x() * current.w());
             current.setY(current.y() * current.w());
@@ -508,11 +436,9 @@ std::pair<QVector3D, QVector3D> SplineUtils::getDerivatives2(NURBS *spline, GLfl
 
 
     if (spline->uDegree >= 2) {
-        for (int j = 0; j <= spline->vDegree; j++)
-        {
+        for (int j = 0; j <= spline->vDegree; j++) {
             QVector4D temp;
-            for (int i = 0; i < spline->uDegree; i++)
-            {
+            for (int i = 0; i < spline->uDegree; i++) {
                 auto tmp1 = spline->controlPoints[span_u - spline->uDegree + i + 1][span_v - spline->vDegree + j];
                 tmp1.setX(tmp1.x() * tmp1.w());
                 tmp1.setY(tmp1.y() * tmp1.w());
@@ -541,11 +467,9 @@ std::pair<QVector3D, QVector3D> SplineUtils::getDerivatives2(NURBS *spline, GLfl
 
         Nddu = basicFunctions(spline->uDegree - 2, span_ddu, spline->knotU, u);
 
-        for (int j = 0; j <= spline->vDegree; j++)
-        {
+        for (int j = 0; j <= spline->vDegree; j++) {
             QVector4D temp;
-            for (int i = 0; i < spline->uDegree - 1; i++)
-            {
+            for (int i = 0; i < spline->uDegree - 1; i++) {
                 auto tmp1 = spline->controlPoints[span_u - spline->uDegree + i + 2][span_v - spline->vDegree + j];
                 tmp1.setX(tmp1.x() * tmp1.w());
                 tmp1.setY(tmp1.y() * tmp1.w());
@@ -561,8 +485,10 @@ std::pair<QVector3D, QVector3D> SplineUtils::getDerivatives2(NURBS *spline, GLfl
                 tmp3.setY(tmp3.y() * tmp3.w());
                 tmp3.setZ(tmp3.z() * tmp3.w());
 
-                auto pi = spline->uDegree * (tmp1 - tmp2) / (spline->knotU[span_u + i + 2] - spline->knotU[span_u - spline->uDegree + i + 2]);
-                auto pi_1 = spline->uDegree * (tmp2 - tmp3) / (spline->knotU[span_u + i + 1] - spline->knotU[span_u - spline->uDegree + i + 1]);
+                auto pi = spline->uDegree * (tmp1 - tmp2) /
+                          (spline->knotU[span_u + i + 2] - spline->knotU[span_u - spline->uDegree + i + 2]);
+                auto pi_1 = spline->uDegree * (tmp2 - tmp3) /
+                            (spline->knotU[span_u + i + 1] - spline->knotU[span_u - spline->uDegree + i + 1]);
 
                 auto current = (spline->uDegree - 1) * (pi - pi_1) /
                                (spline->knotU[span_u + i + 1] - spline->knotU[span_u - spline->uDegree + i + 2]);
@@ -577,9 +503,6 @@ std::pair<QVector3D, QVector3D> SplineUtils::getDerivatives2(NURBS *spline, GLfl
 
         der_u = ddA / B - 2 * dA * dB / (B * B) - A * (ddB / (B * B) - 2 * dB * dB / (B * B * B));
     }
-
-
-
 
 
     point.setX(0);
@@ -638,8 +561,10 @@ std::pair<QVector3D, QVector3D> SplineUtils::getDerivatives2(NURBS *spline, GLfl
                 tmp3.setY(tmp3.y() * tmp3.w());
                 tmp3.setZ(tmp3.z() * tmp3.w());
 
-                auto pi = spline->vDegree * (tmp1 - tmp2) / (spline->knotV[span_v + j + 2] - spline->knotV[span_v - spline->vDegree + j + 2]);
-                auto pi_1 = spline->vDegree * (tmp2 - tmp3) / (spline->knotV[span_v + j + 1] - spline->knotV[span_v - spline->vDegree + j + 1]);
+                auto pi = spline->vDegree * (tmp1 - tmp2) /
+                          (spline->knotV[span_v + j + 2] - spline->knotV[span_v - spline->vDegree + j + 2]);
+                auto pi_1 = spline->vDegree * (tmp2 - tmp3) /
+                            (spline->knotV[span_v + j + 1] - spline->knotV[span_v - spline->vDegree + j + 1]);
 
                 auto current = (spline->vDegree - 1) * (pi - pi_1) /
                                (spline->knotV[span_v + j + 1] - spline->knotV[span_v - spline->vDegree + j + 2]);
@@ -675,8 +600,7 @@ QVector<QVector4D> SplineUtils::curveToSurfaceIntersectionV(NURBS *spline1, GLfl
     QMatrix2x2 g;
     QMatrix2x2 tmpMatrix;
 
-    while (tempU < spline1->knotU.last())
-    {
+    while (tempU < spline1->knotU.last()) {
         auto deltaU = getAdaptiveStepCurveU(spline1, tempU, v);
         GLfloat tempA = spline2->knotU.first();
         GLfloat tempB = spline2->knotV.first();
@@ -684,12 +608,10 @@ QVector<QVector4D> SplineUtils::curveToSurfaceIntersectionV(NURBS *spline1, GLfl
         auto c0 = getPoint(spline1, tempU, v);
         auto c = getDerivatives(spline1, tempU, v).first;
 
-        while (tempA < spline2->knotU.last())
-        {
-            auto deltaA = getAdaptiveStepU( spline2, tempA, tempB);
+        while (tempA < spline2->knotU.last()) {
+            auto deltaA = getAdaptiveStepU(spline2, tempA, tempB);
 
-            while (tempB <  spline2->knotV.last())
-            {
+            while (tempB < spline2->knotV.last()) {
                 auto deltaB = getAdaptiveStepV(spline2, tempA, tempB);
 
                 auto der1 = getDerivatives(spline2, tempA, tempB); // s1, s2
@@ -729,17 +651,15 @@ QVector<QVector4D> SplineUtils::curveToSurfaceIntersectionV(NURBS *spline1, GLfl
                     // дальше идёт решение системы численным методом(например Ньютона)
 
 
-                    try
-                    {
+                    try {
                         auto solution = NewtonSolution3D(spline1, spline2, zeroSolution, 1, v);
                         QVector4D insertSolution{solution.x(), v, solution.y(), solution.z()};
-                        auto delta = (getPoint(spline1, solution.x(), v) - getPoint(spline2, solution.y(), solution.z())).length();
-                        if (isBound(spline1, spline2, insertSolution) && delta < 0.001)
-                        {
+                        auto delta = (getPoint(spline1, solution.x(), v) -
+                                      getPoint(spline2, solution.y(), solution.z())).length();
+                        if (isBound(spline1, spline2, insertSolution) && delta < 0.001) {
                             intersections.append(insertSolution);
                         }
-                    } catch (NotBoundException& e)
-                    {
+                    } catch (NotBoundException &e) {
                         qDebug() << e.what();
                     }
 
@@ -767,19 +687,16 @@ GLfloat SplineUtils::getAdaptiveStepU(NURBS *spline, GLfloat u, GLfloat v) {
     auto der2 = getDerivatives2(spline, u, v);
     auto normal = getNormal(spline, u, v);
 
-    if (der2.first.length() < 0.001)
-    {
+    if (der2.first.length() < 0.001) {
         return stepMin;
     }
 
     auto deltaU = deltaAlpha * der1.first.length() / abs(QVector3D::dotProduct(normal, der2.first));
-    if (deltaU < stepMin)
-    {
+    if (deltaU < stepMin) {
         return stepMin;
     }
 
-    if (deltaU > stepMax)
-    {
+    if (deltaU > stepMax) {
         return stepMax;
     }
     return deltaU;
@@ -790,19 +707,16 @@ GLfloat SplineUtils::getAdaptiveStepV(NURBS *spline, GLfloat u, GLfloat v) {
     auto der2 = getDerivatives2(spline, u, v);
     auto normal = getNormal(spline, u, v);
 
-    if (der2.second.length() < 0.001)
-    {
+    if (der2.second.length() < 0.001) {
         return stepMin;
     }
 
     auto deltaV = deltaAlpha * der1.second.length() / abs(QVector3D::dotProduct(normal, der2.second));
-    if (deltaV < stepMin)
-    {
+    if (deltaV < stepMin) {
         return stepMin;
     }
 
-    if (deltaV > stepMax)
-    {
+    if (deltaV > stepMax) {
         return stepMax;
     }
 
@@ -813,21 +727,18 @@ GLfloat SplineUtils::getAdaptiveStepCurveU(NURBS *spline, GLfloat u, GLfloat v) 
     auto der1 = getDerivatives(spline, u, v);
     auto der2 = getDerivatives2(spline, u, v);
 
-    if (der2.first.length() < 0.001)
-    {
+    if (der2.first.length() < 0.001) {
         return stepMin;
     }
 
     auto deltaT = deltaAlpha * der1.first.length() * der1.first.length() /
                   (QVector3D::crossProduct(der1.first, der2.first).length());
 
-    if (deltaT < stepMin)
-    {
+    if (deltaT < stepMin) {
         return stepMin;
     }
 
-    if (deltaT > stepMax)
-    {
+    if (deltaT > stepMax) {
         return stepMax;
     }
     return deltaT;
@@ -837,20 +748,17 @@ GLfloat SplineUtils::getAdaptiveStepCurveV(NURBS *spline, GLfloat u, GLfloat v) 
     auto der1 = getDerivatives(spline, u, v);
     auto der2 = getDerivatives2(spline, u, v);
 
-    if (der2.second.length() < 0.001)
-    {
+    if (der2.second.length() < 0.001) {
         return stepMin;
     }
 
     auto deltaT = deltaAlpha * der1.second.length() * der1.second.length() /
                   (QVector3D::crossProduct(der1.second, der2.second).length());
-    if (deltaT < stepMin)
-    {
+    if (deltaT < stepMin) {
         return stepMin;
     }
 
-    if (deltaT > stepMax)
-    {
+    if (deltaT > stepMax) {
         return stepMax;
     }
     return deltaT;
@@ -867,50 +775,42 @@ QVector<QVector4D> SplineUtils::getInitialPoints(NURBS *spline1, NURBS *spline2)
     auto du2 = (spline2->knotU.last() - spline2->knotU.first()) / stepU;
     auto dv2 = (spline2->knotV.last() - spline2->knotV.first()) / stepV;
 
-    for (auto U = spline1->knotU.first(); U < spline1->knotU.last(); U += du1)
-    {
+    for (auto U = spline1->knotU.first(); U < spline1->knotU.last(); U += du1) {
         answer += curveToSurfaceIntersectionU(spline1, U, spline2);
 
-        qDebug() << "curve to surface u: ";
-        for (const auto& ans : answer)
-        {
-            qDebug() << ans << getPoint(spline1, ans[0], ans[1]);
+        //qDebug() << "curve to surface u: ";
+        for (const auto &ans: answer) {
+            //qDebug() << ans << getPoint(spline1, ans[0], ans[1]);
         }
     }
 
     answer += curveToSurfaceIntersectionU(spline1, spline1->knotU.last(), spline2);
 
-    qDebug() << "curve to surface u: ";
-    for (const auto& ans : answer)
-    {
-        qDebug() << ans << getPoint(spline1, ans[0], ans[1]);
+    //qDebug() << "curve to surface u: ";
+    for (const auto &ans: answer) {
+        //qDebug() << ans << getPoint(spline1, ans[0], ans[1]);
     }
 
-    for (auto V = spline1->knotV.first(); V <= spline1->knotV.last(); V += dv1)
-    {
+    for (auto V = spline1->knotV.first(); V <= spline1->knotV.last(); V += dv1) {
         answer += curveToSurfaceIntersectionV(spline1, V, spline2);
 
-        qDebug() << "curve to surface v: ";
-        for (const auto& ans : answer)
-        {
-            qDebug() << ans << getPoint(spline1, ans[0], ans[1]);
+        //qDebug() << "curve to surface v: ";
+        for (const auto &ans: answer) {
+            //qDebug() << ans << getPoint(spline1, ans[0], ans[1]);
         }
     }
 
     answer += curveToSurfaceIntersectionV(spline1, spline1->knotV.last(), spline2);
 
-    qDebug() << "curve to surface v: ";
-    for (const auto& ans : answer)
-    {
-        qDebug() << ans << getPoint(spline1, ans[0], ans[1]);
+    //qDebug() << "curve to surface v: ";
+    for (const auto &ans: answer) {
+        //qDebug() << ans << getPoint(spline1, ans[0], ans[1]);
     }
 
-    for (auto U = spline2->knotU.first(); U < spline2->knotU.last(); U += du2)
-    {
+    for (auto U = spline2->knotU.first(); U < spline2->knotU.last(); U += du2) {
 
         auto tmp = curveToSurfaceIntersectionU(spline2, U, spline1);
-        for (auto& elem : tmp)
-        {
+        for (auto &elem: tmp) {
             float tempX = elem.x();
             float tempY = elem.y();
             elem.setX(elem.z());
@@ -919,17 +819,15 @@ QVector<QVector4D> SplineUtils::getInitialPoints(NURBS *spline1, NURBS *spline2)
             elem.setW(tempY);
         }
 
-        qDebug() << "curve to surface u: ";
-        for (const auto& ans : tmp)
-        {
-            qDebug() << ans << getPoint(spline1, ans[0], ans[1]);
+        //qDebug() << "curve to surface u: ";
+        for (const auto &ans: tmp) {
+            //qDebug() << ans << getPoint(spline1, ans[0], ans[1]);
         }
         answer += tmp;
     }
 
     auto tmp = curveToSurfaceIntersectionU(spline2, spline2->knotU.last(), spline1);
-    for (auto& elem : tmp)
-    {
+    for (auto &elem: tmp) {
         float tempX = elem.x();
         float tempY = elem.y();
         elem.setX(elem.z());
@@ -937,20 +835,17 @@ QVector<QVector4D> SplineUtils::getInitialPoints(NURBS *spline1, NURBS *spline2)
         elem.setZ(tempX);
         elem.setW(tempY);
 
-        qDebug() << "curve to surface u: ";
-        for (const auto& ans : tmp)
-        {
-            qDebug() << ans << getPoint(spline1, ans[0], ans[1]);
+        //qDebug() << "curve to surface u: ";
+        for (const auto &ans: tmp) {
+            //qDebug() << ans << getPoint(spline1, ans[0], ans[1]);
         }
     }
     answer += tmp;
 
-    for (auto V = spline2->knotV.first(); V < spline2->knotV.last(); V += dv2)
-    {
+    for (auto V = spline2->knotV.first(); V < spline2->knotV.last(); V += dv2) {
         auto tmp = curveToSurfaceIntersectionV(spline2, V, spline1);
 
-        for (auto& elem : tmp)
-        {
+        for (auto &elem: tmp) {
             float tempX = elem.x();
             float tempY = elem.y();
             elem.setX(elem.z());
@@ -958,10 +853,9 @@ QVector<QVector4D> SplineUtils::getInitialPoints(NURBS *spline1, NURBS *spline2)
             elem.setZ(tempX);
             elem.setW(tempY);
         }
-        qDebug() << "curve to surface v: ";
-        for (const auto& ans : tmp)
-        {
-            qDebug() << ans << getPoint(spline1, ans[0], ans[1]);
+        //qDebug() << "curve to surface v: ";
+        for (const auto &ans: tmp) {
+            //qDebug() << ans << getPoint(spline1, ans[0], ans[1]);
         }
 
         answer += tmp;
@@ -969,8 +863,7 @@ QVector<QVector4D> SplineUtils::getInitialPoints(NURBS *spline1, NURBS *spline2)
 
     tmp = curveToSurfaceIntersectionV(spline2, spline2->knotV.last(), spline1);
 
-    for (auto& elem : tmp)
-    {
+    for (auto &elem: tmp) {
         float tempX = elem.x();
         float tempY = elem.y();
         elem.setX(elem.z());
@@ -978,44 +871,58 @@ QVector<QVector4D> SplineUtils::getInitialPoints(NURBS *spline1, NURBS *spline2)
         elem.setZ(tempX);
         elem.setW(tempY);
     }
-    qDebug() << "curve to surface v: ";
-    for (const auto& ans : tmp)
-    {
-        qDebug() << ans << getPoint(spline1, ans[0], ans[1]);
+    //qDebug() << "curve to surface v: ";
+    for (const auto &ans: tmp) {
+        //qDebug() << ans << getPoint(spline1, ans[0], ans[1]);
     }
     answer += tmp;
 
     return answer;
 }
 
-QVector<QVector3D> SplineUtils::iterPointsPlus(NURBS *spline1, NURBS *spline2, const QVector4D &point) {
-    QVector<QVector3D> result;
+QVector<QVector4D>
+SplineUtils::iterPointsPlus(NURBS *spline1, NURBS *spline2, int &pointIndex, QVector<QVector4D> &initialPoints) {
+    QVector<QVector4D> result;
 
-    auto initialPoint = point;
+    auto initialPoint = initialPoints[pointIndex];
 
     int iterCount = 0;
 
 
-    while (isBound(spline1, spline2, initialPoint) && iterCount < 1000)
-    {
+    while (isBound(spline1, spline2, initialPoint) && iterCount < 1000) {
 
+        auto logger = Logger::getInstance();
+        logger->write(initialPoint.x(), initialPoint.y());
         auto poi = getPoint(spline1, initialPoint.x(), initialPoint.y());
         auto cross = QVector3D::crossProduct(getNormal(spline1, initialPoint.x(), initialPoint.y()),
                                              getNormal(spline2, initialPoint.z(), initialPoint.w())).length();
-        qDebug() << "iteration: " << iterCount << " with point " << initialPoint << " and cross: " << cross << " value: " << poi;
-        if ( cross < 0.01) {
+        qDebug() << "iteration: " << iterCount << " with point " << initialPoint << " and cross: " << cross
+                 << " value: " << poi;
+        if (cross < 0.01) {
             qDebug() << "Found tangent intersection in point " << initialPoint;
             return result;
         }
-        if (!isBound(spline1, spline2, initialPoint))
-        {
-            break;
-        }
 
-        if (iterCount != 0)
-        {
-
-            result.append(getPoint(spline1, initialPoint.x(), initialPoint.y()));
+        if (iterCount != 0) {
+            for (int i = 0; i < initialPoints.size(); ++i) {
+                auto pt = initialPoints[i];
+                qDebug() << pt << initialPoint << (pt - initialPoint).length();
+                auto len = SplineUtils::getPoint(spline1, initialPoint.x(), initialPoint.y()) -
+                           SplineUtils::getPoint(spline1, pt.x(), pt.y());
+                auto len1 = (initialPoint.x() - pt.x()) * (initialPoint.x() - pt.x()) +
+                            (initialPoint.y() - pt.y()) * (initialPoint.y() - pt.y());
+                auto len2 = (initialPoint.z() - pt.z()) * (initialPoint.z() - pt.z()) +
+                            (initialPoint.w() - pt.w()) * (initialPoint.w() - pt.w());
+                qDebug() << len1 << len2;
+                if (i != pointIndex && std::min(len1, len2) < 0.001f) {
+                    qDebug() << "Point removed!";
+                    initialPoints.remove(i);
+                    if (pointIndex >= i) {
+                        --pointIndex;
+                    }
+                }
+            }
+            result.append(initialPoint);
         }
 
         auto derUV = getDerivatives(spline1, initialPoint.x(), initialPoint.y());
@@ -1024,8 +931,7 @@ QVector<QVector3D> SplineUtils::iterPointsPlus(NURBS *spline1, NURBS *spline2, c
         auto normal2 = QVector3D::crossProduct(derAB.first, derAB.second).normalized();
         auto t = QVector3D::crossProduct(normal1, normal2);
 
-        if (t.length() < 0.01)
-        {
+        if (t.length() < 0.01) {
             break;
         }
         auto ur1 = getAdaptiveStepU(spline1, initialPoint.x(), initialPoint.y()) * derUV.first;
@@ -1034,7 +940,8 @@ QVector<QVector3D> SplineUtils::iterPointsPlus(NURBS *spline1, NURBS *spline2, c
         auto bs2 = getAdaptiveStepV(spline2, initialPoint.z(), initialPoint.w()) * derAB.second;
 
         auto app = getStepRadius(ur1, vr2, as1, bs2, t);
-        auto direction = getDirectionStepRadius(ur1 / derUV.first.length(), vr2 / derUV.second.length(), as1 / derAB.first.length(), bs2 / derAB.second.length(), t);
+        auto direction = getDirectionStepRadius(ur1 / derUV.first.length(), vr2 / derUV.second.length(),
+                                                as1 / derAB.first.length(), bs2 / derAB.second.length(), t);
 
         auto stepu0 = app * QVector3D::dotProduct(t, derUV.first) / (t.length() * derUV.first.lengthSquared());
         auto stepv0 = app * QVector3D::dotProduct(t, derUV.second) / (t.length() * derUV.second.lengthSquared());
@@ -1051,12 +958,36 @@ QVector<QVector3D> SplineUtils::iterPointsPlus(NURBS *spline1, NURBS *spline2, c
         initialPoint.setZ(a0);
         initialPoint.setW(b0);
 
-        try
-        {
-            switch (direction)
-            {
-                case 0:
-                {
+        if (!isBound(spline1, spline2, initialPoint)) {
+            auto lastPoint = fitPointBound(spline1, spline2, initialPoint);
+            /*if (!result.contains(lastPoint)) {
+                result.append(lastPoint);
+            }*/
+            for (int i = 0; i < initialPoints.size(); ++i) {
+                auto pt = initialPoints[i];
+                qDebug() << pt << lastPoint << (pt - lastPoint).length();
+                //auto len = SplineUtils::getPoint(spline1, lastPoint.x(), lastPoint.y()) - SplineUtils::getPoint(spline1, pt.x(), pt.y());
+                auto len1 = (lastPoint.x() - pt.x()) * (lastPoint.x() - pt.x()) +
+                            (lastPoint.y() - pt.y()) * (lastPoint.y() - pt.y());
+                auto len2 = (lastPoint.z() - pt.z()) * (lastPoint.z() - pt.z()) +
+                            (lastPoint.w() - pt.w()) * (lastPoint.w() - pt.w());
+                if (i != pointIndex && std::min(len1, len2) < 0.001f) {
+                    qDebug() << "Point removed!";
+                    initialPoints.remove(i);
+                    if (pointIndex >= i) {
+                        --pointIndex;
+                    }
+                }
+            }
+
+            qDebug() << "Rest point: " << initialPoint;
+            break;
+        }
+
+
+        try {
+            switch (direction) {
+                case 0: {
                     auto tmp = QVector3D(initialPoint.y(), initialPoint.z(), initialPoint.w());
                     auto next = NewtonSolution3D(spline1, spline2, tmp, 0, initialPoint.x());
                     initialPoint.setY(next.x());
@@ -1065,8 +996,7 @@ QVector<QVector3D> SplineUtils::iterPointsPlus(NURBS *spline1, NURBS *spline2, c
                     break;
                 }
 
-                case 1:
-                {
+                case 1: {
                     auto tmp = QVector3D(initialPoint.x(), initialPoint.z(), initialPoint.w());
                     auto next = NewtonSolution3D(spline1, spline2, tmp, 1, initialPoint.y());
                     initialPoint.setX(next.x());
@@ -1075,8 +1005,7 @@ QVector<QVector3D> SplineUtils::iterPointsPlus(NURBS *spline1, NURBS *spline2, c
                     break;
                 }
 
-                case 2:
-                {
+                case 2: {
                     auto tmp = QVector3D(initialPoint.w(), initialPoint.x(), initialPoint.y());
                     auto next = NewtonSolution3D(spline2, spline1, tmp, 0, initialPoint.z());
                     initialPoint.setX(next.y());
@@ -1085,8 +1014,7 @@ QVector<QVector3D> SplineUtils::iterPointsPlus(NURBS *spline1, NURBS *spline2, c
                     break;
                 }
 
-                case 3:
-                {
+                case 3: {
                     auto tmp = QVector3D(initialPoint.z(), initialPoint.x(), initialPoint.y());
                     auto next = NewtonSolution3D(spline2, spline1, tmp, 1, initialPoint.w());
                     initialPoint.setX(next.y());
@@ -1095,8 +1023,7 @@ QVector<QVector3D> SplineUtils::iterPointsPlus(NURBS *spline1, NURBS *spline2, c
                     break;
                 }
             }
-        } catch (NotBoundException& e)
-        {
+        } catch (NotBoundException &e) {
             qDebug() << e.what();
             return result;
         }
@@ -1105,37 +1032,49 @@ QVector<QVector3D> SplineUtils::iterPointsPlus(NURBS *spline1, NURBS *spline2, c
         ++iterCount;
     }
 
+
     return result;
 }
 
-QVector<QVector3D> SplineUtils::iterPointsMinus(NURBS *spline1, NURBS *spline2, const QVector4D &point) {
-    QVector<QVector3D> result;
+QVector<QVector4D>
+SplineUtils::iterPointsMinus(NURBS *spline1, NURBS *spline2, int &pointIndex, QVector<QVector4D> &initialPoints) {
+    QVector<QVector4D> result;
 
-    auto initialPoint = point;
+    auto initialPoint = initialPoints[pointIndex];
 
     int iterCount = 0;
 
 
-    while (isBound(spline1, spline2, initialPoint) && iterCount < 1000)
-    {
+    while (isBound(spline1, spline2, initialPoint) && iterCount < 1000) {
 
         auto poi = getPoint(spline1, initialPoint.x(), initialPoint.y());
         auto cross = QVector3D::crossProduct(getNormal(spline1, initialPoint.x(), initialPoint.y()),
                                              getNormal(spline2, initialPoint.z(), initialPoint.w())).length();
-        qDebug() << "iteration: " << iterCount << " with point " << initialPoint << " and cross: " << cross << " value: " << poi;
-        if ( cross < 0.01) {
+        qDebug() << "iteration: " << iterCount << " with point " << initialPoint << " and cross: " << cross
+                 << " value: " << poi;
+        if (cross < 0.01) {
             qDebug() << "Found tangent intersection in point " << initialPoint;
             return result;
         }
-        if (!isBound(spline1, spline2, initialPoint))
-        {
-            break;
-        }
 
-        if (iterCount != 0)
-        {
-
-            result.append(getPoint(spline1, initialPoint.x(), initialPoint.y()));
+        if (iterCount != 0) {
+            for (int i = 0; i < initialPoints.size(); ++i) {
+                auto pt = initialPoints[i];
+                auto len = SplineUtils::getPoint(spline1, initialPoint.x(), initialPoint.y()) -
+                           SplineUtils::getPoint(spline1, pt.x(), pt.y());
+                auto len1 = (initialPoint.x() - pt.x()) * (initialPoint.x() - pt.x()) +
+                            (initialPoint.y() - pt.y()) * (initialPoint.y() - pt.y());
+                auto len2 = (initialPoint.z() - pt.z()) * (initialPoint.z() - pt.z()) +
+                            (initialPoint.w() - pt.w()) * (initialPoint.w() - pt.w());
+                if (i != pointIndex && std::min(len1, len2) < 0.001f) {
+                    qDebug() << "Point removed!";
+                    initialPoints.remove(i);
+                    if (pointIndex >= i) {
+                        --pointIndex;
+                    }
+                }
+            }
+            result.append(initialPoint);
         }
 
         auto derUV = getDerivatives(spline1, initialPoint.x(), initialPoint.y());
@@ -1144,8 +1083,7 @@ QVector<QVector3D> SplineUtils::iterPointsMinus(NURBS *spline1, NURBS *spline2, 
         auto normal2 = QVector3D::crossProduct(derAB.first, derAB.second).normalized();
         auto t = -QVector3D::crossProduct(normal1, normal2);
 
-        if (t.length() < 0.01)
-        {
+        if (t.length() < 0.01) {
             break;
         }
         auto ur1 = getAdaptiveStepU(spline1, initialPoint.x(), initialPoint.y()) * derUV.first;
@@ -1154,7 +1092,8 @@ QVector<QVector3D> SplineUtils::iterPointsMinus(NURBS *spline1, NURBS *spline2, 
         auto bs2 = getAdaptiveStepV(spline2, initialPoint.z(), initialPoint.w()) * derAB.second;
 
         auto app = getStepRadius(ur1, vr2, as1, bs2, t);
-        auto direction = getDirectionStepRadius(ur1 / derUV.first.length(), vr2 / derUV.second.length(), as1 / derAB.first.length(), bs2 / derAB.second.length(), t);
+        auto direction = getDirectionStepRadius(ur1 / derUV.first.length(), vr2 / derUV.second.length(),
+                                                as1 / derAB.first.length(), bs2 / derAB.second.length(), t);
 
         auto stepu0 = app * QVector3D::dotProduct(t, derUV.first) / (t.length() * derUV.first.lengthSquared());
         auto stepv0 = app * QVector3D::dotProduct(t, derUV.second) / (t.length() * derUV.second.lengthSquared());
@@ -1171,12 +1110,38 @@ QVector<QVector3D> SplineUtils::iterPointsMinus(NURBS *spline1, NURBS *spline2, 
         initialPoint.setZ(a0);
         initialPoint.setW(b0);
 
-        try
-        {
-            switch (direction)
-            {
-                case 0:
-                {
+        if (!isBound(spline1, spline2, initialPoint)) {
+            auto lastPoint = fitPointBound(spline1, spline2, initialPoint);
+            for (int i = 0; i < initialPoints.size(); ++i) {
+                auto pt = initialPoints[i];
+                /*
+                if (!result.contains(lastPoint)) {
+                    result.append(lastPoint);
+                }*/
+                qDebug() << pt << lastPoint << (pt - lastPoint).length();
+                auto len = SplineUtils::getPoint(spline1, lastPoint.x(), lastPoint.y()) -
+                           SplineUtils::getPoint(spline1, pt.x(), pt.y());
+                auto len1 = (lastPoint.x() - pt.x()) * (lastPoint.x() - pt.x()) +
+                            (lastPoint.y() - pt.y()) * (lastPoint.y() - pt.y());
+                auto len2 = (lastPoint.z() - pt.z()) * (lastPoint.z() - pt.z()) +
+                            (lastPoint.w() - pt.w()) * (lastPoint.w() - pt.w());
+                qDebug() << std::min(len1, len2);
+                if (i != pointIndex && std::min(len1, len2) < 0.001f) {
+                    qDebug() << "Point removed!";
+                    initialPoints.remove(i);
+                    if (pointIndex >= i) {
+                        --pointIndex;
+                    }
+                }
+            }
+
+            qDebug() << "Rest point: " << initialPoint;
+            break;
+        }
+        try {
+            switch (direction) {
+
+                case 0: {
                     auto tmp = QVector3D(initialPoint.y(), initialPoint.z(), initialPoint.w());
                     auto next = NewtonSolution3D(spline1, spline2, tmp, 0, initialPoint.x());
                     initialPoint.setY(next.x());
@@ -1185,8 +1150,7 @@ QVector<QVector3D> SplineUtils::iterPointsMinus(NURBS *spline1, NURBS *spline2, 
                     break;
                 }
 
-                case 1:
-                {
+                case 1: {
                     auto tmp = QVector3D(initialPoint.x(), initialPoint.z(), initialPoint.w());
                     auto next = NewtonSolution3D(spline1, spline2, tmp, 1, initialPoint.y());
                     initialPoint.setX(next.x());
@@ -1195,8 +1159,7 @@ QVector<QVector3D> SplineUtils::iterPointsMinus(NURBS *spline1, NURBS *spline2, 
                     break;
                 }
 
-                case 2:
-                {
+                case 2: {
                     auto tmp = QVector3D(initialPoint.w(), initialPoint.x(), initialPoint.y());
                     auto next = NewtonSolution3D(spline2, spline1, tmp, 0, initialPoint.z());
                     initialPoint.setX(next.y());
@@ -1205,8 +1168,7 @@ QVector<QVector3D> SplineUtils::iterPointsMinus(NURBS *spline1, NURBS *spline2, 
                     break;
                 }
 
-                case 3:
-                {
+                case 3: {
                     auto tmp = QVector3D(initialPoint.z(), initialPoint.x(), initialPoint.y());
                     auto next = NewtonSolution3D(spline2, spline1, tmp, 1, initialPoint.w());
                     initialPoint.setX(next.y());
@@ -1215,8 +1177,7 @@ QVector<QVector3D> SplineUtils::iterPointsMinus(NURBS *spline1, NURBS *spline2, 
                     break;
                 }
             }
-        } catch (NotBoundException& e)
-        {
+        } catch (NotBoundException &e) {
             qDebug() << e.what();
             return result;
         }
@@ -1232,10 +1193,8 @@ QMatrix3x3 SplineUtils::getJacobian3D(NURBS *spline1, NURBS *spline2, int constI
                                       const QVector3D &current) {
     QMatrix3x3 answer;
 
-    if (constIndex == 0)
-    {
-        if (!isBound(spline1, spline2, QVector4D(constValue, current.x(), current.y(), current.z())))
-        {
+    if (constIndex == 0) {
+        if (!isBound(spline1, spline2, QVector4D(constValue, current.x(), current.y(), current.z()))) {
             throw NotBoundException();
         }
         auto der1 = getDerivatives(spline1, constValue, current.x());
@@ -1251,10 +1210,8 @@ QMatrix3x3 SplineUtils::getJacobian3D(NURBS *spline1, NURBS *spline2, int constI
         answer(0, 2) = -der2.second.x();
         answer(1, 2) = -der2.second.y();
         answer(2, 2) = -der2.second.z();
-    } else
-    {
-        if (!isBound(spline1, spline2, QVector4D(current.x(), constValue, current.y(), current.z())))
-        {
+    } else {
+        if (!isBound(spline1, spline2, QVector4D(current.x(), constValue, current.y(), current.z()))) {
             throw NotBoundException();
         }
         auto der1 = getDerivatives(spline1, current.x(), constValue);
@@ -1279,8 +1236,7 @@ QMatrix3x3 SplineUtils::getJacobian3D(NURBS *spline1, NURBS *spline2, int constI
 QMatrix4x4 SplineUtils::getJacobian4D(NURBS *spline1, NURBS *spline2, const QVector4D &current) {
     QMatrix4x4 answer;
 
-    if (!isBound(spline1, spline2, current))
-    {
+    if (!isBound(spline1, spline2, current)) {
         throw NotBoundException();
     }
     auto r = getPoint(spline1, current.x(), current.y());
@@ -1327,15 +1283,12 @@ QVector3D SplineUtils::NewtonSolution3D(NURBS *spline1, NURBS *spline2, const QV
 
     auto iterCount = 0;
 
-    do
-    {
+    do {
         auto jacobian = invertMatrix3D(getJacobian3D(spline1, spline2, constIndex, constValue, current));
         QVector3D value;
-        if (constIndex == 0)
-        {
-            value = getPoint(spline1, constValue, current.x()) - getPoint(spline2, current.y(), current.z()) ;
-        } else
-        {
+        if (constIndex == 0) {
+            value = getPoint(spline1, constValue, current.x()) - getPoint(spline2, current.y(), current.z());
+        } else {
             value = getPoint(spline1, current.x(), constValue) - getPoint(spline2, current.y(), current.z());
         }
 
@@ -1351,15 +1304,15 @@ QVector3D SplineUtils::NewtonSolution3D(NURBS *spline1, NURBS *spline2, const QV
         prev(2, 0) = previous.z();
         auto tmp = prev - jacobian * vec;
         current = {tmp(0, 0), tmp(1, 0), tmp(2, 0)};
-        qDebug() << "Newton accuracy: " << (current - previous).length() << ' ' << current << " iteration: " << iterCount;
+        /*qDebug() << "Newton accuracy: " << (current - previous).length() << ' ' << current << " iteration: "
+                 << iterCount;
+        */
         ++iterCount;
     } while ((current - previous).length() > eps && iterCount <= 50);
 
-    if ((current - previous).length() > eps)
-    {
+    if ((current - previous).length() > eps) {
         QVector4D solution;
-        if (constValue == 0)
-        {
+        if (constValue == 0) {
             solution.setX(constValue);
             solution.setY(current.x());
             solution.setZ(current.y());
@@ -1368,9 +1321,7 @@ QVector3D SplineUtils::NewtonSolution3D(NURBS *spline1, NURBS *spline2, const QV
             auto answer = NewtonSolution4D(spline1, spline2, solution);
             QVector3D tmp{answer.y(), answer.z(), answer.w()};
             return tmp;
-        }
-        else
-        {
+        } else {
             solution.setX(current.x());
             solution.setY(constValue);
             solution.setZ(current.y());
@@ -1387,8 +1338,7 @@ QVector3D SplineUtils::NewtonSolution3D(NURBS *spline1, NURBS *spline2, const QV
 QVector4D SplineUtils::NewtonSolution4D(NURBS *spline1, NURBS *spline2, const QVector4D &zeroSolution) {
     auto previous = zeroSolution;
     auto current = zeroSolution;
-    do
-    {
+    do {
         auto jacobian = invertMatrix4D(getJacobian4D(spline1, spline2, current));
         QVector4D value;
         auto r = getPoint(spline1, zeroSolution.x(), zeroSolution.y());
@@ -1405,7 +1355,7 @@ QVector4D SplineUtils::NewtonSolution4D(NURBS *spline1, NURBS *spline2, const QV
         QGenericMatrix<1, 4, float> vec;
 
         current = previous - value * jacobian;
-        qDebug() << "Newton accuracy: " << (current - previous).length() << ' ' << current;
+        //qDebug() << "Newton accuracy: " << (current - previous).length() << ' ' << current;
     } while ((current - previous).length() > 0.00001);
 
     return current;
@@ -1417,20 +1367,28 @@ bool SplineUtils::isBound(NURBS *spline1, NURBS *spline2, const QVector4D &point
     bool inA = point.z() <= spline2->knotU.last() && point.z() >= spline2->knotU.first();
     bool inB = point.w() <= spline2->knotV.last() && point.w() >= spline2->knotV.first();
 
-    return inU && inV && inA && inB;
+    bool answer = inU && inV && inA && inB;
+    if (!answer) {
+        qDebug() << "amogus";
+        qDebug() << point;
+        qDebug() << spline1->knotU.first() << spline1->knotU.last();
+        qDebug() << spline1->knotV.first() << spline1->knotU.last();
+        qDebug() << spline2->knotU.first() << spline2->knotU.last();
+        qDebug() << spline2->knotV.first() << spline2->knotV.last();
+    }
+    return answer;
 }
 
 std::pair<QVector3D, QVector3D> SplineUtils::getBoundingBox(NURBS *spline) {
     auto FLT_MIN =
-            std::numeric_limits<float>::min();
-
+            std::numeric_limits<float>::lowest();
     auto FLT_MAX = std::numeric_limits<float>::max();
 
     QVector3D bbmax{FLT_MIN, FLT_MIN, FLT_MIN};
     QVector3D bbmin{FLT_MAX, FLT_MAX, FLT_MAX};
 
-    for (const auto& controlPoint : spline->controlPoints) {
-        for (const auto& point : controlPoint) {
+    for (const auto &controlPoint: spline->controlPoints) {
+        for (const auto &point: controlPoint) {
             bbmin.setX(qMin(bbmin.x(), point.x()));
             bbmin.setY(qMin(bbmin.y(), point.y()));
             bbmin.setZ(qMin(bbmin.z(), point.z()));
@@ -1455,3 +1413,237 @@ bool SplineUtils::isBBIntersected(NURBS *s1, NURBS *s2) {
     // If there is overlap in all dimensions, the boxes intersect
     return xOverlap && yOverlap && zOverlap;
 }
+
+QVector2D SplineUtils::PointProjection(NURBS *spline, const QVector3D &p) {
+    QVector<QVector2D> intersections;
+    GLfloat U = spline->knotU.first();
+    GLfloat V = spline->knotV.first();
+
+    int iter_count = 0;
+
+    while (U < spline->knotU.last()) {
+        auto dU = getAdaptiveStepU(spline, U, V);
+        qDebug() << U;
+
+        while (V < spline->knotV.last()) {
+            auto dV = getAdaptiveStepV(spline, U, V);
+
+            auto a_ij = QVector3D::dotProduct(p - getPoint(spline, U - dU, V), getDerivatives(spline, U, V).first);
+            auto b_ij = QVector3D::dotProduct(p - getPoint(spline, U, V - dV), getDerivatives(spline, U, V).second);
+            auto c_ij = QVector3D::dotProduct(p - getPoint(spline, U + dU, V), getDerivatives(spline, U, V).first);
+            auto d_ij = QVector3D::dotProduct(p - getPoint(spline, U, V + dV), getDerivatives(spline, U, V).second);
+
+            if (a_ij * b_ij <= 0 && c_ij * d_ij <= 0) {
+                auto u0 = U;
+                auto v0 = V;
+
+                while (true) {
+                    auto dir1 = getDerivatives(spline, u0, v0);
+                    auto dir2 = getDerivatives2(spline, u0, v0);
+                    auto mixed = getDerivativesMixed(spline, u0, v0);
+
+                    auto A_11 = QVector3D::dotProduct(p - getPoint(spline, u0, v0), dir2.first) -
+                                QVector3D::dotProduct(dir1.first, dir1.first);
+                    auto A_12 = QVector3D::dotProduct(p - getPoint(spline, u0, v0), mixed) -
+                                QVector3D::dotProduct(dir1.second, dir1.first);
+                    auto A_21 = QVector3D::dotProduct(p - getPoint(spline, u0, v0), mixed) -
+                                QVector3D::dotProduct(dir1.first, dir1.second);
+                    auto A_22 = QVector3D::dotProduct(p - getPoint(spline, u0, v0), dir2.second) -
+                                QVector3D::dotProduct(dir1.second, dir1.second);
+
+                    auto b1 = QVector3D::dotProduct(getPoint(spline, u0, v0) - p, dir1.first);
+                    auto b2 = QVector3D::dotProduct(getPoint(spline, u0, v0) - p, dir1.second);
+
+                    auto dot = A_11 * A_22 - A_12 * A_21;
+
+                    auto uk = A_22 / dot * b1 - A_12 / dot * b2;
+                    auto vk = A_11 / dot * b2 - A_21 / dot * b1;
+
+                    u0 += uk;
+                    v0 += vk;
+                    if (iter_count >= 100) {
+                        break;
+                    }
+                    if (std::abs(uk) < 0.001f && std::abs(vk) < 0.001f) {
+                        intersections.append({u0, v0});
+                        break;
+                    }
+
+                    ++iter_count;
+                }
+
+            }
+
+            V += dV;
+        }
+
+        V = spline->knotV.first();
+        U += dU;
+    }
+
+
+    auto minPoint = intersections[0];
+    auto minDistance = (p - getPoint(spline, minPoint.x(), minPoint.y())).length();
+
+    for (const auto &point: intersections) {
+        auto distance = (p - getPoint(spline, point.x(), point.y())).length();
+        if (distance < minDistance) {
+            minPoint = point;
+            minDistance = distance;
+        }
+    }
+
+    qDebug() << "Minimal projection: " << minPoint << " with distance: " << minDistance << " and coords: "
+             << getPoint(spline, minPoint.x(), minPoint.y());
+    return minPoint;
+}
+
+bool SplineUtils::isBound(NURBS *spline, const QVector2D &point) {
+    bool inU = point.x() <= spline->knotU.last() && point.x() >= spline->knotU.first();
+    bool inV = point.y() <= spline->knotV.last() && point.y() >= spline->knotV.first();
+
+    return inU && inV;
+}
+
+GLfloat SplineUtils::getAdaptiveStepT(NURBSCurve *spl, GLfloat t) {
+    return 0;
+}
+
+QVector2D SplineUtils::getPoint2D(NURBSCurve *spl, GLfloat t) {
+    int span_t = findSpan(spl->tDegree, spl->knott, t);
+
+    auto Nu = basicFunctions(spl->tDegree, span_t, spl->knott, t);
+
+
+    QVector3D point;
+
+    for (int k = 0; k <= spl->tDegree; k++) {
+        auto current = spl->controlPoints[span_t - spl->tDegree + k];
+        current.setX(current.x() * current.z());
+        current.setY(current.y() * current.z());
+
+        point += Nu[k] * current;
+    }
+
+    QVector2D result;
+    result.setX(point.x() / point.z());
+    result.setY(point.y() / point.z());
+
+    return result;
+}
+
+PolylineCurve *SplineUtils::fitCurve(NURBSCurve *spl) {
+    PolylineCurve *result = new PolylineCurve;
+    auto dt = 0.01;
+    auto t0 = spl->knott.first();
+    while (t0 < spl->knott.last()) {
+        result->sequencePoints.append(getPoint2D(spl, t0));
+        t0 += dt;
+    }
+
+    if (t0 < spl->knott.last()) {
+        result->sequencePoints.append(getPoint2D(spl, spl->knott.last()));
+    }
+
+    if (spl->isLooped) {
+        result->sequencePoints.append(result->sequencePoints.first());
+    }
+
+    qDebug() << result->sequencePoints;
+    return result;
+}
+
+QVector4D SplineUtils::fitPointBound(NURBS *spline1, NURBS *spline2, const QVector4D &point) {
+    float eps = 0.001f;
+    QVector4D answer;
+    answer.setX(std::min(std::max(point.x() + eps, spline1->knotU.first()), spline1->knotU.last()));
+    answer.setY(std::min(std::max(point.y() + eps, spline1->knotV.first()), spline1->knotV.last()));
+    answer.setZ(std::min(std::max(point.z() + eps, spline2->knotU.first()), spline2->knotU.last()));
+    answer.setW(std::min(std::max(point.w() + eps, spline2->knotV.first()), spline2->knotV.last()));
+    return answer;
+}
+
+float round_to(float value, float precision) {
+    return std::round(value / precision) * precision;
+}
+
+QVector2D SplineUtils::fitPointBound(NURBS *spline1, const QVector2D &point) {
+    float eps = 0.001f;
+    QVector2D answer;
+
+
+    if (spline1->knotU.last() - point.x() < 0.001f && point.x() > spline1->knotU.first()) {
+        answer.setX(spline1->knotU.last());
+    } else if (point.x() - spline1->knotU.first() < 0.001f && point.x() < spline1->knotU.last()) {
+        answer.setX(spline1->knotU.first());
+    } else {
+        answer.setX(std::min(std::max(point.x(), spline1->knotU.first()), spline1->knotU.last()));
+    }
+
+    if (spline1->knotV.last() - point.y() < 0.001f && point.y() > spline1->knotV.first()) {
+        answer.setY(spline1->knotV.last());
+    } else if (point.y() - spline1->knotV.first() < 0.001f && point.y() < spline1->knotV.last()) {
+        answer.setY(spline1->knotV.first());
+    } else {
+        answer.setY(std::min(std::max(point.y(), spline1->knotV.first()), spline1->knotV.last()));
+    }
+
+
+    return answer;
+}
+
+void SplineUtils::rotate(BREP *b, const QVector3D &xyz_rotate) {
+
+    for (auto surface: b->surfaces.keys()) {
+
+        qDebug() << "Before: " << surface->controlPoints;
+        for (int i = 0; i < surface->controlPoints.size(); ++i) {
+            for (int j = 0; j < surface->controlPoints[i].size(); ++j) {
+                surface->controlPoints[i][j] = rotate_x(surface->controlPoints[i][j], xyz_rotate.x());
+                surface->controlPoints[i][j] = rotate_y(surface->controlPoints[i][j], xyz_rotate.y());
+                surface->controlPoints[i][j] = rotate_z(surface->controlPoints[i][j], xyz_rotate.z());
+            }
+        }
+        qDebug() << "After: " << surface->controlPoints;
+    }
+}
+
+QVector4D SplineUtils::rotate_x(const QVector4D &point, float angle) {
+    QVector4D result;
+    auto cos_x = std::cos(angle * M_PI / 180);
+    auto sin_x = std::sin(angle * M_PI / 180);
+
+    result.setX(point.x());
+    result.setY(point.y() * cos_x + point.z() * sin_x);
+    result.setZ(-point.y() * sin_x + point.z() * cos_x);
+    result.setW(point.w());
+
+    return result;
+}
+
+QVector4D SplineUtils::rotate_y(const QVector4D &point, float angle) {
+    QVector4D result;
+    auto cos_x = std::cos(angle * M_PI / 180);
+    auto sin_x = std::sin(angle * M_PI / 180);
+
+    result.setX(point.x() * cos_x + point.z() * sin_x);
+    result.setY(point.y());
+    result.setZ(-point.x() * sin_x + point.z() * cos_x);
+    result.setW(point.w());
+
+    return result;
+}
+
+QVector4D SplineUtils::rotate_z(const QVector4D &point, float angle) {
+    QVector4D result;
+    auto cos_x = std::cos(angle * M_PI / 180);
+    auto sin_x = std::sin(angle * M_PI / 180);
+
+    result.setX(point.x() * cos_x + point.y() * sin_x);
+    result.setY(-point.x() * sin_x + point.y() * cos_x);
+    result.setZ(point.z());
+    result.setW(point.w());
+
+    return result;
+}
+

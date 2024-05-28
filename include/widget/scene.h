@@ -14,6 +14,7 @@
 #include "render_object/SplineRenderer.h"
 #include "render_object/PointRenderer.h"
 #include "render_object/NormalRenderer.h"
+#include "structures/BREP.h"
 
 
 //! [1]
@@ -79,6 +80,8 @@ public:
     void addGeometry(Mesh *mesh);
 
     void addSpline(NURBS *pNurbs);
+
+    void addBREP(BREP *brep);
 
     virtual void mouseMoveEvent(QMouseEvent *event);
 

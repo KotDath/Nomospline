@@ -3,6 +3,7 @@
 #include "Camera.h"
 #include "structures/Mesh.h"
 #include "structures/NURBS.h"
+#include "structures/BREP.h"
 
 class SceneData {
 private:
@@ -25,6 +26,7 @@ public:
     QVector<Mesh*> meshes;
     QVector<NURBS*> splines;
     QVector<Mesh*> splineMeshes;
+    QVector<BREP*> breps;
     Mesh* intersectionPoints;
 
     bool isRenderMeshes = false;
