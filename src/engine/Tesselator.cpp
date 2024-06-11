@@ -69,7 +69,7 @@ Mesh *Tesselator::tesselate(NURBS *spl, QVector<QVector<QVector2D>> limits, int 
     logger->deployData(QString::number(rand()%(1000+1)));
 
     // Создание равномерной сетки
-    const int N = 500, M = 500;
+    const int N = 65, M = 65;
 
     if (spl->uDegree == 1 && spl->vDegree == 1) {
         qDebug() << "Limits: " << limits;
@@ -228,7 +228,7 @@ float Tesselator::crossProduct(const QVector2D &p, const QVector2D &P1, const QV
 
 std::map<std::pair<float, float>, QVector<std::pair<QVector2D, QVector2D>>>
 Tesselator::clasterize(NURBS *spl, QVector<QVector<QVector2D>> limits) {
-    const int N = 500, M = 500;
+    const int N = 65, M = 65;
     std::map<std::pair<float, float>, QVector<std::pair<QVector2D, QVector2D>>> result;
 
     float du = (spl->knotU.last() - spl->knotU.first()) / N, dv = (spl->knotV.last() -

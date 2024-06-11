@@ -3,6 +3,7 @@
 void PointRenderer::setMesh(const Mesh *mesh) {
     msh = mesh;
     arrayBuf.bind();
+    qDebug() << "Count: " << msh->vertices.count();
     arrayBuf.allocate(msh->vertices.data(), msh->vertices.count() * sizeof(VertexData));
 
     indexBuf.bind();

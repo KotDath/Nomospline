@@ -72,9 +72,25 @@ void SplineRenderer::paint() {
                                  sceneData->camera.getProjection() * sceneData->camera.getView() * model);
     }
 
+    int point_color = program->uniformLocation("point_color");
+
+    if (point_color != -1) {
+
+        program->setUniformValue(point_color, 1.0, 0.0, 0.0);
+    }
+
+
+    int point_size = program->uniformLocation("point_size");
+
+    if (point_size != -1) {
+
+        program->setUniformValue(point_size, 5.0f);
+    }
+
     int vertexLocation = program->attributeLocation("a_Position");
     program->enableAttributeArray(vertexLocation);
     program->setAttributeBuffer(vertexLocation, GL_FLOAT, 0, 3, sizeof(GLfloat) * 3);
+
     glDrawArrays(GL_POINTS, 0, count);
 
     program->release();
@@ -91,7 +107,7 @@ void SplineRenderer::paint() {
     vertexLocation = grid_program->attributeLocation("a_Position");
     grid_program->enableAttributeArray(vertexLocation);
     grid_program->setAttributeBuffer(vertexLocation, GL_FLOAT, 0, 3, sizeof(GLfloat) * 3);
-    glDrawElements(GL_LINES, spline_count, GL_UNSIGNED_SHORT, nullptr);
+    glDrawElements(GL_TRIANGLES, spline_count, GL_UNSIGNED_SHORT, nullptr);
 
     arrayBuf.release();
     indexBuf.release();

@@ -292,9 +292,9 @@ void asyncEvaluate() {
             }
 
             if (limits.empty()) {
-                data->splineMeshes.append(Tesselator::tesselate(spline, limits, true));
+                data->splineMeshes.append(Tesselator::tesselate(spline, limits, 0, true));
             } else {
-                data->splineMeshes.append(Tesselator::tesselate(spline, limits, false));
+                data->splineMeshes.append(Tesselator::tesselate(spline, limits, 0, false));
             }
 
         }

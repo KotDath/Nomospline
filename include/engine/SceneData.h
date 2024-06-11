@@ -27,7 +27,7 @@ public:
     QVector<NURBS*> splines;
     QVector<Mesh*> splineMeshes;
     QVector<BREP*> breps;
-    Mesh* intersectionPoints;
+    Mesh* intersectionPoints = nullptr;
 
     bool isRenderMeshes = false;
     bool isRenderEvaluate = false;

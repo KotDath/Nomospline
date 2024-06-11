@@ -9,8 +9,9 @@
 #include "engine/BREPLoader.h"
 
 BREP *BREPLoader::load(const QString &path) {
+    qDebug() << "Path: " << path;
     QFile file(path);
-    if (!file.open(QIODevice::ReadOnly))
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
     {
         QMessageBox::information(0, "error", file.errorString());
     }

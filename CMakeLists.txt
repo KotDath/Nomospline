@@ -6,7 +6,8 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-list(APPEND CMAKE_PREFIX_PATH "~/Qt/6.6.1/gcc_64")
+
+list(APPEND CMAKE_PREFIX_PATH "C:\\Qt\\6.6.1\\msvc2019_64\\lib\\cmake")
 
 
 
@@ -20,10 +21,9 @@ find_package(Qt6 COMPONENTS
         Quick
         Concurrent
         REQUIRED)
+find_package(OpenGL REQUIRED)
 
-find_package(OpenCL REQUIRED)
-
-include_directories(include)
+include_directories(include ${OPENGL_INCLUDE_DIRS})
 
 SET(ENGINE_SRC src/engine/MeshLoader.cpp src/engine/Camera.cpp src/engine/SplineLoader.cpp
         include/engine/Tesselator.h
@@ -70,9 +70,6 @@ set(OTHER_SRC
         src/structures/BREP.cpp
 )
 
-INCLUDE_DIRECTORIES(${OpenCL_INCLUDE_DIRS})
-
-LINK_DIRECTORIES(${OpenCL_LIBRARY})
 
 add_executable(Nomospline main.cpp ${ENGINE_SRC} ${WIDGET_SRC} ${STRUCTURES_SRC} ${OTHER_SRC} ${RENDER_SRC} shaders.qrc images.qrc)
 
@@ -85,7 +82,7 @@ target_link_libraries(Nomospline
         Qt::Qml
         Qt::Quick
         Qt6::Concurrent
-        OpenCL::OpenCL
+        ${OPENGL_LIBRARIES}
         )
 
 

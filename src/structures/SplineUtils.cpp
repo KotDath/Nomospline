@@ -14,7 +14,7 @@ float stepMax = 0.1;
 
 class NotBoundException : public std::exception {
 public:
-    char *what() {
+    const char *what() {
         return "Point not bound";
     }
 };
@@ -1380,9 +1380,6 @@ bool SplineUtils::isBound(NURBS *spline1, NURBS *spline2, const QVector4D &point
 }
 
 std::pair<QVector3D, QVector3D> SplineUtils::getBoundingBox(NURBS *spline) {
-    auto FLT_MIN =
-            std::numeric_limits<float>::lowest();
-    auto FLT_MAX = std::numeric_limits<float>::max();
 
     QVector3D bbmax{FLT_MIN, FLT_MIN, FLT_MIN};
     QVector3D bbmin{FLT_MAX, FLT_MAX, FLT_MAX};

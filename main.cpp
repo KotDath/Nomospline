@@ -4,7 +4,8 @@
 #include <iostream>
 #include <QtQml>
 #include <QUrl>
-#include <CL/cl.h>
+#include <QQuickWindow>
+#include <QFile>
 
 #include "widget/scene.h"
 #include "widget/WindowUtils.h"
@@ -38,14 +39,29 @@ void registerTypes() {
     qmlRegisterType<WindowUtils>("WindowUtils",1,0,"WindowUtils");
 }
 
+void testFileRead() {
+    QFile file("C:\\code\\Nomospline\\examples\\BREP\\cylinder\\cylinder.json");
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        qDebug() << file.errorString();
+    }
+
+    QTextStream in(&file);
+    auto val = file.readAll();
+    file.close();
+
+    qDebug() << QString(val);
+}
+
 int main(int argc, char *argv[])
 {
+    testFileRead();
     QApplication a(argc, argv);
     QFont fon("Comic Sans", 16);
     a.setFont(fon);
-
+    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
     registerTypes();
-    QQmlApplicationEngine engine("../qml/main.qml");
+    QQmlApplicationEngine engine("C:\\code\\Nomospline\\qml\\main.qml");
 
     return QApplication::exec();
 }

@@ -56,7 +56,7 @@ ApplicationWindow {
             for (let i = 0; i < fileDialog.selectedFiles.length; i++) {
 
                 let path = fileDialog.selectedFiles[i].toString();
-                path = path.replace(/^(file:\/{2})/,"");
+                path = path.replace(/^(file:\/{3})/,"");
                 let cleanPath = decodeURIComponent(path);
                 windowUtils.importMesh(cleanPath)
             }
@@ -78,7 +78,7 @@ ApplicationWindow {
             for (let i = 0; i < brepDialog.selectedFiles.length; i++) {
 
                 let path = brepDialog.selectedFiles[i].toString();
-                path = path.replace(/^(file:\/{2})/,"");
+                path = path.replace(/^(file:\/{3})/,"");
                 let cleanPath = decodeURIComponent(path);
                 windowUtils.importBREP(cleanPath)
             }
@@ -193,8 +193,6 @@ ApplicationWindow {
                 windowUtils: windowUtils
                 SplitView.fillHeight: true
                 SplitView.minimumWidth: 200
-                SplitView.preferredWidth:parent.width / 5.0
-                SplitView.maximumWidth: parent.width / 2.0
                 clip: true
             }
 
